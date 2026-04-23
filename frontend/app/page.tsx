@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { ExtractedFinancials } from "@/lib/schema";
 
-const BACKEND_URL = "http://localhost:8000/api/v1/extract-financials";
+const BACKEND_URL = "/api/process-financials";
 
 const PROCESSING_STEPS = [
   "Parsing document structure…",

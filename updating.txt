@@ -1,0 +1,28 @@
+Vibe coding is the absolute best way to build. Now that you have survived the initial setup and wired your Railway project directly to your GitHub repository, the update process is essentially on autopilot.
+
+Because Railway is actively "watching" your GitHub repo, you don't actually have to touch the Railway dashboard at all to make updates. Here is your exact workflow from VS Code to the live internet.
+
+Step 1: Vibe Code Locally
+Make all your changes, text edits, color tweaks, and new features right there in VS Code.
+
+(Pro-tip: If you want to see your UI changes before sending them to the live site, just open a terminal in your frontend folder and run npm run dev. You can check your vibes locally at http://localhost:3000).
+
+Step 2: Save and Push to GitHub
+Once your edits are looking flawless, you just need to send those changes up to your GitHub repository. Open your VS Code terminal (make sure you are in the root Dashboard v2 folder, not just the frontend or backend folder) and run your standard Git trio:
+
+Bash
+git add .
+git commit -m "Updated the hero text and tweaked dashboard vibes"
+git push origin main
+Step 3: Let Railway Do the Heavy Lifting
+That's it. You are done.
+
+The moment you hit enter on that git push command, GitHub sends a silent signal to Railway. Railway will instantly:
+
+Notice the new code.
+
+Automatically start a new build.
+
+Seamlessly swap out the old version for your new version without the website ever going down.
+
+If you ever want to watch it happen, you can open your Railway dashboard and you'll see the deployment bars already spinning. Within a minute or two, your live Asymmetrica Valuations site will perfectly reflect the new vibes!
