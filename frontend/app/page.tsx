@@ -151,7 +151,7 @@ function IdleView({ onFile }: { onFile: (f: File) => void }) {
           variants={fadeUp}
           className="text-5xl font-extralight tracking-tighter text-white"
         >
-          DD-Dash
+          Asymmetrica Valuations
         </motion.h1>
 
         {/* Description */}
@@ -379,7 +379,7 @@ function SuccessView({
           <BarChart3 className="relative size-4 text-zinc-400" />
         </div>
         <span className="text-sm font-extralight tracking-[0.12em] text-zinc-300">
-          DD-Dash
+          Asymmetrica Valuations
         </span>
         <div className="flex-1" />
         <button
