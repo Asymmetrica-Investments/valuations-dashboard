@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  /* Fade-in animation used by the processing step ticker */
+  .animate-in {
+    animation-fill-mode: both;
+  }
+  .fade-in {
+    animation-name: fade-in;
+  }
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .duration-500 {
+    animation-duration: 500ms;
+  }
+}
+
+@layer base {
+  /*
+   * Dark-first theme.
+   * Variables are H S% L% so Tailwind can compose them with hsl(var(--x) / <alpha>).
+   */
+  :root {
+    --background: 0 0% 8%;
+    --foreground: 0 0% 97%;
+
+    --card: 0 0% 13%;
+    --card-foreground: 0 0% 97%;
+
+    --popover: 0 0% 13%;
+    --popover-foreground: 0 0% 97%;
+
+    --primary: 0 0% 91%;
+    --primary-foreground: 0 0% 13%;
+
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 0 0% 97%;
+
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 44%;
+
+    --accent: 0 0% 16%;
+    --accent-foreground: 0 0% 97%;
+
+    --destructive: 4 71% 50%;
+    --destructive-foreground: 0 0% 97%;
+
+    --border: 0 0% 100%;
+    --input: 0 0% 100%;
+    --ring: 0 0% 34%;
+
+    --chart-1: 0 0% 87%;
+    --chart-2: 0 0% 44%;
+    --chart-3: 0 0% 27%;
+    --chart-4: 0 0% 23%;
+    --chart-5: 0 0% 16%;
+
+    --radius: 0.625rem;
+  }
+
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+}
+
+/* ─── Print / Export PDF ──────────────────────────────────────────────────── */
+
+/*
+ * @page lives outside @media print — it sets the physical page box.
+ * A4: 210mm × 297mm. Margins give ~180mm × 273mm of usable content.
+ */
+@page {
+  size: A4;
+  margin: 12mm 15mm;
+}
+
+@media print {
+  /*
+   * Force the browser to print background colors and images exactly as
+   * rendered on screen (dark theme preserved — no color inversion).
+   */
+  html,
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /*
+   * Repeat the <thead> at the top of every printed page so the column
+   * labels are always visible when the table spans multiple pages.
+   */
+  thead {
+    display: table-header-group;
+  }
+
+  /*
+   * Allow the table body to break across pages but never split a single
+   * data row across a page boundary.
+   */
+  tbody tr {
+    break-inside: avoid;
+  }
+
+  /*
+   * Remove box shadows and transitions — they don't render well in print
+   * and can cause bleed artefacts on some PDF renderers.
+   */
+  * {
+    box-shadow: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}

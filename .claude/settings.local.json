@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where npm:*)",
+      "Bash(cmd.exe /c \"npm --version\")"
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+# ── Web framework ──────────────────────────────────────────────────────────────
+fastapi
+uvicorn[standard]
+python-multipart
+
+# ── Data validation ────────────────────────────────────────────────────────────
+pydantic>=2.0
+pydantic-settings
+
+# ── Document parsing ───────────────────────────────────────────────────────────
+pandas
+openpyxl
+pdfplumber
+
+# ── LLM / AI ──────────────────────────────────────────────────────────────────
+openai
+instructor
+
+# ── Environment ───────────────────────────────────────────────────────────────
+python-dotenv
