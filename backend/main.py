@@ -85,6 +85,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# The CORS VIP List
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000", # Keeps your local testing working
+        "https://asymmetrica-valuations.up.railway.app", # Allows your live frontend
+    ],
+    allow_credentials=True,
+    allow_methods=["*"], # Allows all actions (GET, POST, etc.)
+    allow_headers=["*"], # Allows all headers
+)
+
 # ─── CORS ──────────────────────────────────────────────────────────────────────
 # allow_origins=["*"] is fine for local development.
 # Tighten to your frontend origin(s) before going to production.
