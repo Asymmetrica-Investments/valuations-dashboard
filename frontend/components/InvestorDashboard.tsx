@@ -712,7 +712,7 @@ export function InvestorDashboard({ data }: { data: ExtractedFinancials }) {
       {/* ── Print-only memo header ────────────────────────────────────────── */}
       <div className="hidden print:block mb-4">
         <p className="text-[10px] uppercase tracking-widest text-zinc-500">
-          Asymmetrica Valuations
+          Due Diligence Memo
         </p>
         <h1 className="text-2xl font-light tracking-tight text-white mt-1">
           {data.company_name}

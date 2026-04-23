@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { ExtractedFinancials } from "@/lib/schema";
 
-const BACKEND_URL = "/api/process-financials";
+const BACKEND_URL = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/extract-financials`;
 
 const PROCESSING_STEPS = [
   "Parsing document structure…",
@@ -151,7 +151,7 @@ function IdleView({ onFile }: { onFile: (f: File) => void }) {
           variants={fadeUp}
           className="text-5xl font-extralight tracking-tighter text-white"
         >
-          Asymmetrica Valuations
+          DD-Dash
         </motion.h1>
 
         {/* Description */}
@@ -379,7 +379,7 @@ function SuccessView({
           <BarChart3 className="relative size-4 text-zinc-400" />
         </div>
         <span className="text-sm font-extralight tracking-[0.12em] text-zinc-300">
-          Asymmetrica Valuations
+          DD-Dash
         </span>
         <div className="flex-1" />
         <button

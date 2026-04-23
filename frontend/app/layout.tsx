@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Asymmetrica Valuations",
+  title: "DD-Dash",
   description: "Automated due-diligence financial extraction",
 };
 
