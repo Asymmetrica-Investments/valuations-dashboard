@@ -41,7 +41,7 @@ MINIMAX_API_KEY: str = os.environ.get("MINIMAX_API_KEY", "")
 MINIMAX_BASE_URL: str = os.environ.get(
     "MINIMAX_BASE_URL", "https://api.minimaxi.chat/v1"
 )
-MINIMAX_MODEL: str = os.environ.get("MINIMAX_MODEL", "MiniMax-M2.5")
+MINIMAX_MODEL: str = os.environ.get("MINIMAX_MODEL", "abab6.5s-chat")
 LLM_MAX_TOKENS: int = int(os.environ.get("LLM_MAX_TOKENS", "4096"))
 
 # instructor will automatically retry this many times if the model returns
@@ -49,7 +49,7 @@ LLM_MAX_TOKENS: int = int(os.environ.get("LLM_MAX_TOKENS", "4096"))
 MAX_RETRIES: int = 3
 
 # Hard cap on the raw text we pass to the model — prevents context overflow.
-# MiniMax-Text-01 has a 1M-token context, so 120k chars (~30k tokens) is safe.
+# abab6.5s-chat has a 245k-token context, so 120k chars (~30k tokens) is safe.
 MAX_INPUT_CHARS: int = 120_000
 
 
