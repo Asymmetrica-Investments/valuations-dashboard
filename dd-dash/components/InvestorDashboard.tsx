@@ -539,7 +539,7 @@ export function InvestorDashboard({
       {/* ── Print-only memo header (hidden on screen) ── */}
       <div className="hidden print:block mb-4 pb-3 border-b border-border">
         <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground mb-1">
-          DD-Dash · Due Diligence Memo
+          Asymmetrica Valuations
         </p>
         <p className="text-[10px] text-muted-foreground/50">
           Extracted {new Date(data.extractedAt).toLocaleDateString("en-GB", {

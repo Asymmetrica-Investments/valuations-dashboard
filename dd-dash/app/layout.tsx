@@ -16,7 +16,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "DD-Dash",
+  title: "Asymmetrica Valuations",
   description: "Due Diligence Dashboard — Asymmetrica Investments",
 };
 

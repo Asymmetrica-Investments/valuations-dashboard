@@ -79,7 +79,7 @@ function SuccessView({
       <div className="w-full max-w-[1100px] flex items-center justify-between px-0.5 print:hidden">
         <div className="flex items-center gap-2 text-muted-foreground/50">
           <BarChart3 className="h-3.5 w-3.5" strokeWidth={1.5} />
-          <span className="text-[10px] font-semibold tracking-widest uppercase">DD-Dash</span>
+          <span className="text-[10px] font-semibold tracking-widest uppercase">Asymmetrica Valuations</span>
         </div>
         <Button
           variant="ghost"
@@ -109,7 +109,7 @@ function IdleView({ onFileSelect }: { onFileSelect: (file: File) => void }) {
         <div className="inline-flex items-center gap-2.5 mb-1">
           <BarChart3 className="w-5 h-5 text-primary" strokeWidth={1.5} />
           <span className="text-sm font-semibold tracking-[0.2em] text-muted-foreground uppercase">
-            DD-Dash
+            Asymmetrica Valuations
           </span>
         </div>
         <h1 className="text-3xl font-semibold tracking-tight text-foreground leading-tight">
