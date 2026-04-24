@@ -414,10 +414,40 @@ export default function Home() {
     }, 2500);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      // Force the file into local memory before touching FormData.
+      // Cloud-picker files (Google Drive, iCloud) are lazy — the OS hasn't
+      // downloaded them yet. arrayBuffer() blocks until the bytes are local.
+      let buffer: ArrayBuffer;
+      try {
+        buffer = await file.arrayBuffer();
+      } catch {
+        throw new Error(
+          "Could not read the file. Please wait for it to fully download from Google Drive or iCloud, then try again."
+        );
+      }
 
-      const res = await fetch(BACKEND_URL, { method: "POST", body: formData });
+      if (buffer.byteLength === 0) {
+        throw new Error(
+          "Please wait for the file to fully download from Google Drive before analyzing."
+        );
+      }
+
+      const safeFile = new File([buffer], file.name, {
+        type: file.type || "application/pdf",
+      });
+
+      const formData = new FormData();
+      formData.append("file", safeFile);
+
+      let res: Response;
+      try {
+        res = await fetch(BACKEND_URL, { method: "POST", body: formData });
+      } catch (networkErr) {
+        console.error("[upload] Network error during fetch:", networkErr);
+        throw new Error(
+          "Network error — please check your connection and try again."
+        );
+      }
 
       if (!res.ok) {
         let message = `Server error (${res.status})`;
@@ -434,6 +464,7 @@ export default function Home() {
       setData(result);
       setState("success");
     } catch (err: unknown) {
+      console.error("[upload] Failed:", err);
       toast.error(
         err instanceof Error ? err.message : "Unexpected error — please try again."
       );
