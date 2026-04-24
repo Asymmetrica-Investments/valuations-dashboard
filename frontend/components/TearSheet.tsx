@@ -169,6 +169,14 @@ function TearSheetContent({ data, fileName }: ContentProps) {
         </div>
       </div>
 
+      {/* ── SECTION LABEL: Operating Metrics ───────────────────────────────── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: C.textDim, whiteSpace: "nowrap" }}>
+          Operating Metrics
+        </div>
+        <div style={{ flex: 1, height: 1, backgroundColor: C.border }} />
+      </div>
+
       {/* ── KPI ROW ─────────────────────────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 28 }}>
         {[
@@ -306,6 +314,16 @@ function TearSheetContent({ data, fileName }: ContentProps) {
           </tbody>
         </table>
       </div>
+
+      {/* ── SECTION LABEL: Fair Market Value Analysis ──────────────────────── */}
+      {valuation && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <div style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: C.textDim, whiteSpace: "nowrap" }}>
+            Fair Market Value Analysis
+          </div>
+          <div style={{ flex: 1, height: 1, backgroundColor: C.border }} />
+        </div>
+      )}
 
       {/* ── VALUATION ───────────────────────────────────────────────────────── */}
       {valuation && (

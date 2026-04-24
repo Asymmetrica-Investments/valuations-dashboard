@@ -645,6 +645,15 @@ async function exportPdf(
     windowHeight: tearSheetEl.scrollHeight,
     x: 0,
     y: 0,
+    // Strip every stylesheet from the cloned document before parsing begins.
+    // Tailwind v4 outputs oklch()/lab() colors which html2canvas cannot parse,
+    // causing a hard crash. The TearSheet uses only inline styles, so removing
+    // external CSS has zero effect on the rendered output.
+    onclone: (clonedDoc: Document) => {
+      clonedDoc
+        .querySelectorAll('style, link[rel="stylesheet"]')
+        .forEach((el) => el.remove());
+    },
   });
   console.log("[export] canvas:", canvas.width, "×", canvas.height);
 
@@ -729,7 +738,7 @@ function ExportModal({ data, fileName, tearSheetRef, onClose }: ExportModalProps
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 72, damping: 18 } }}
           exit={{ opacity: 0, scale: 0.96, y: 10, transition: { duration: 0.15 } }}
-          className="relative w-full max-w-lg rounded-2xl border border-zinc-800/60 bg-zinc-950 shadow-2xl"
+          className="relative w-full max-w-5xl rounded-2xl border border-zinc-800/60 bg-zinc-950 shadow-2xl overflow-y-auto max-h-[95vh]"
         >
           {/* Close */}
           <button
@@ -751,19 +760,13 @@ function ExportModal({ data, fileName, tearSheetRef, onClose }: ExportModalProps
 
             <div className="mt-5 h-px bg-zinc-800/60" />
 
-            {/* Scaled visual preview of the tear-sheet */}
-            <div className="mt-5 overflow-hidden rounded-xl border border-zinc-800/50 bg-zinc-950"
-              style={{ height: 220 }}>
-              <div
-                style={{
-                  transform: "scale(0.37)",
-                  transformOrigin: "top left",
-                  width: 1200,
-                  pointerEvents: "none",
-                  userSelect: "none",
-                }}
-              >
-                {/* Inline mini-preview — separate instance from the capture ref */}
+            {/* Scrollable live preview — zoom shrinks content AND affects layout,
+                so overflow-y-auto gives true vertical scrolling at the scaled size */}
+            <div
+              className="mt-5 rounded-xl border border-zinc-800/50 overflow-y-auto overflow-x-hidden"
+              style={{ maxHeight: "70vh", background: "#09090b" }}
+            >
+              <div style={{ zoom: 0.72, pointerEvents: "none", userSelect: "none" }}>
                 <TearSheetPreview data={data} fileName={fileName} />
               </div>
             </div>
