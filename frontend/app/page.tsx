@@ -413,16 +413,33 @@ export default function Home() {
       setStepIdx((i) => Math.min(i + 1, PROCESSING_STEPS.length - 1));
     }, 2500);
 
+    // Abort controller kills the fetch after 90s — prevents an infinite hang
+    // if the backend is unreachable on a poor mobile connection.
+    const controller = new AbortController();
+    const fetchTimeout = setTimeout(() => controller.abort(), 90_000);
+
     try {
       // Force the file into local memory before touching FormData.
       // Cloud-picker files (Google Drive, iCloud) are lazy — the OS hasn't
-      // downloaded them yet. arrayBuffer() blocks until the bytes are local.
+      // downloaded them yet. We race against a 30s timeout so a stalled
+      // cloud download never leaves the UI stuck in loading forever.
       let buffer: ArrayBuffer;
       try {
-        buffer = await file.arrayBuffer();
-      } catch {
+        buffer = await Promise.race([
+          file.arrayBuffer(),
+          new Promise<never>((_, reject) =>
+            setTimeout(
+              () => reject(new Error("file_timeout")),
+              30_000
+            )
+          ),
+        ]);
+      } catch (e) {
+        const isTimeout = e instanceof Error && e.message === "file_timeout";
         throw new Error(
-          "Could not read the file. Please wait for it to fully download from Google Drive or iCloud, then try again."
+          isTimeout
+            ? "The file is still downloading from Google Drive or iCloud. Please wait a moment and try again."
+            : "Could not read the file. Please wait for it to fully download from Google Drive or iCloud, then try again."
         );
       }
 
@@ -441,11 +458,19 @@ export default function Home() {
 
       let res: Response;
       try {
-        res = await fetch(BACKEND_URL, { method: "POST", body: formData });
+        res = await fetch(BACKEND_URL, {
+          method: "POST",
+          body: formData,
+          signal: controller.signal,
+        });
       } catch (networkErr) {
+        const isAbort =
+          networkErr instanceof Error && networkErr.name === "AbortError";
         console.error("[upload] Network error during fetch:", networkErr);
         throw new Error(
-          "Network error — please check your connection and try again."
+          isAbort
+            ? "The request timed out. Please check your connection and try again."
+            : "Network error — please check your connection and try again."
         );
       }
 
@@ -471,6 +496,7 @@ export default function Home() {
       setState("idle");
     } finally {
       clearInterval(interval);
+      clearTimeout(fetchTimeout);
     }
   }
 
