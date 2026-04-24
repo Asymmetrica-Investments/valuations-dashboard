@@ -362,9 +362,11 @@ function LoadingView({ step }: { step: string }) {
 
 function SuccessView({
   data,
+  fileName,
   onReset,
 }: {
   data: ExtractedFinancials;
+  fileName: string;
   onReset: () => void;
 }) {
   return (
@@ -391,7 +393,7 @@ function SuccessView({
         </button>
       </nav>
       <main className="flex flex-1 justify-center py-6">
-        <InvestorDashboard data={data} />
+        <InvestorDashboard data={data} fileName={fileName} />
       </main>
     </div>
   );
@@ -403,10 +405,12 @@ export default function Home() {
   type AppState = "idle" | "loading" | "success";
   const [state, setState] = useState<AppState>("idle");
   const [data, setData] = useState<ExtractedFinancials | null>(null);
+  const [fileName, setFileName] = useState<string>("");
   const [stepIdx, setStepIdx] = useState(0);
 
   async function handleFileSelect(file: File) {
     setState("loading");
+    setFileName(file.name);
     setStepIdx(0);
 
     const interval = setInterval(() => {
@@ -511,7 +515,7 @@ export default function Home() {
   if (state === "success" && data) {
     return (
       <main className="flex flex-1 flex-col bg-zinc-950">
-        <SuccessView data={data} onReset={() => { setData(null); setState("idle"); }} />
+        <SuccessView data={data} fileName={fileName} onReset={() => { setData(null); setState("idle"); }} />
       </main>
     );
   }

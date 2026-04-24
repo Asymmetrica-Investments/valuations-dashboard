@@ -17,7 +17,7 @@ import {
   Cell,
 } from "recharts";
 import { FileDown, X, TrendingUp, TrendingDown, Minus, Loader2 } from "lucide-react";
-import { TearSheet } from "@/components/TearSheet";
+import { TearSheet, TearSheetPreview } from "@/components/TearSheet";
 import {
   Table,
   TableBody,
@@ -631,16 +631,22 @@ async function exportPdf(
   const jsPDF = (await import("jspdf")).default;
 
   onProgress("Capturing screenshot…");
+  console.log("[export] tear-sheet element:", tearSheetEl);
+  console.log("[export] dimensions:", tearSheetEl.scrollWidth, "×", tearSheetEl.scrollHeight);
   const canvas = await html2canvas(tearSheetEl, {
     scale: 2,
     useCORS: true,
+    allowTaint: true,
     backgroundColor: "#09090b",
-    logging: false,
+    logging: true,
     width: tearSheetEl.scrollWidth,
     height: tearSheetEl.scrollHeight,
     windowWidth: tearSheetEl.scrollWidth,
     windowHeight: tearSheetEl.scrollHeight,
+    x: 0,
+    y: 0,
   });
+  console.log("[export] canvas:", canvas.width, "×", canvas.height);
 
   onProgress("Building PDF…");
   const imgData = canvas.toDataURL("image/png");
@@ -669,11 +675,12 @@ async function exportPdf(
 // ── Export modal ─────────────────────────────────────────────────────────────
 interface ExportModalProps {
   data: ExtractedFinancials;
+  fileName: string;
   tearSheetRef: React.RefObject<HTMLDivElement | null>;
   onClose: () => void;
 }
 
-function ExportModal({ data, tearSheetRef, onClose }: ExportModalProps) {
+function ExportModal({ data, fileName, tearSheetRef, onClose }: ExportModalProps) {
   const [status, setStatus] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
@@ -693,8 +700,11 @@ function ExportModal({ data, tearSheetRef, onClose }: ExportModalProps) {
       setDone(true);
       setStatus(null);
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
       console.error("[export] PDF generation failed:", err);
-      setStatus("Export failed — please try again.");
+      console.error("[export] Error message:", msg);
+      console.error("[export] tearSheetRef.current:", tearSheetRef.current);
+      setStatus(`Export failed: ${msg}`);
     }
   }
 
@@ -732,36 +742,29 @@ function ExportModal({ data, tearSheetRef, onClose }: ExportModalProps) {
           <div className="p-6">
             {/* Title */}
             <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-600 mb-1">Export</p>
-            <h3 className="text-lg font-light text-white tracking-tight">Financial Tear-Sheet</h3>
+            <h3 className="text-lg font-light text-white tracking-tight">
+              {fileName || "Financial Tear-Sheet"}
+            </h3>
             <p className="mt-1 text-[11px] text-zinc-500">
               Landscape A4 PDF · 1200px desktop layout · Dark theme
             </p>
 
             <div className="mt-5 h-px bg-zinc-800/60" />
 
-            {/* Preview summary */}
-            <div className="mt-5 rounded-xl border border-zinc-800/50 bg-zinc-900/50 p-4 space-y-3">
-              <div className="flex justify-between">
-                <span className="text-[10px] uppercase tracking-widest text-zinc-600">Company</span>
-                <span className="text-[12px] text-zinc-300 font-light">{data.company_name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[10px] uppercase tracking-widest text-zinc-600">Periods</span>
-                <span className="text-[12px] text-zinc-300 font-light">{data.metrics.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[10px] uppercase tracking-widest text-zinc-600">Latest Revenue</span>
-                <span className="text-[12px] text-zinc-300 font-light">{fmtC(latest?.revenue)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[10px] uppercase tracking-widest text-zinc-600">Latest EBITDA</span>
-                <span className={cn("text-[12px] font-light", latest?.ebitda == null ? "text-zinc-500" : latest.ebitda >= 0 ? "text-emerald-300" : "text-red-300")}>
-                  {fmtC(latest?.ebitda)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[10px] uppercase tracking-widest text-zinc-600">Confidence</span>
-                <span className="text-[12px] text-zinc-300 font-light">{Math.round(data.confidence_score * 100)}%</span>
+            {/* Scaled visual preview of the tear-sheet */}
+            <div className="mt-5 overflow-hidden rounded-xl border border-zinc-800/50 bg-zinc-950"
+              style={{ height: 220 }}>
+              <div
+                style={{
+                  transform: "scale(0.37)",
+                  transformOrigin: "top left",
+                  width: 1200,
+                  pointerEvents: "none",
+                  userSelect: "none",
+                }}
+              >
+                {/* Inline mini-preview — separate instance from the capture ref */}
+                <TearSheetPreview data={data} fileName={fileName} />
               </div>
             </div>
 
@@ -806,7 +809,7 @@ function ExportModal({ data, tearSheetRef, onClose }: ExportModalProps) {
 }
 
 // ── Main component ───────────────────────────────────────────────────────────
-export function InvestorDashboard({ data }: { data: ExtractedFinancials }) {
+export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFinancials; fileName?: string }) {
   const cur = data.reporting_currency;
   const [activeTab, setActiveTab] = useState<"metrics" | "valuation">("metrics");
   const [exportOpen, setExportOpen] = useState(false);
@@ -1400,12 +1403,13 @@ export function InvestorDashboard({ data }: { data: ExtractedFinancials }) {
       </motion.div>
 
       {/* Hidden tear-sheet captured by html2canvas — never visible to user */}
-      <TearSheet data={data} innerRef={tearSheetRef} />
+      <TearSheet data={data} fileName={fileName} innerRef={tearSheetRef} />
 
       {/* Export modal */}
       {exportOpen && (
         <ExportModal
           data={data}
+          fileName={fileName}
           tearSheetRef={tearSheetRef}
           onClose={() => setExportOpen(false)}
         />

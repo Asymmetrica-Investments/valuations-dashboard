@@ -99,13 +99,13 @@ function computeValuation(latest: FinancialMetrics | undefined) {
   return { fcff, wacc, ev, equity };
 }
 
-// ── TearSheet ────────────────────────────────────────────────────────────────
-interface TearSheetProps {
+// ── Shared content (used by both the off-screen capture target and the modal preview) ──
+interface ContentProps {
   data: ExtractedFinancials;
-  innerRef: React.RefObject<HTMLDivElement | null>;
+  fileName?: string;
 }
 
-export function TearSheet({ data, innerRef }: TearSheetProps) {
+function TearSheetContent({ data, fileName }: ContentProps) {
   const cur = data.reporting_currency;
   const latest = [...data.metrics].reverse().find((m) => !m.is_projected) ?? data.metrics[data.metrics.length - 1];
   const valuation = computeValuation(latest);
@@ -139,27 +139,22 @@ export function TearSheet({ data, innerRef }: TearSheetProps) {
   };
   const tdR: React.CSSProperties = { ...tdBase, textAlign: "right", fontVariantNumeric: "tabular-nums" };
 
+  const baseStyle: React.CSSProperties = {
+    width: 1200,
+    backgroundColor: C.bg,
+    fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
+    color: C.textWhite,
+    padding: 40,
+    boxSizing: "border-box",
+  };
+
   return (
-    // Positioned off-screen — not visible to user
-    <div
-      style={{
-        position: "fixed",
-        top: -9999,
-        left: -9999,
-        width: 1200,
-        backgroundColor: C.bg,
-        fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
-        color: C.textWhite,
-        padding: 40,
-        boxSizing: "border-box",
-      }}
-      ref={innerRef}
-    >
+    <div style={baseStyle}>
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 28, borderBottom: `1px solid ${C.border}`, paddingBottom: 20 }}>
         <div>
           <div style={{ fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: C.textDim, marginBottom: 6 }}>
-            Asymmetrica Valuations · Financial Tear-Sheet
+            Asymmetrica Valuations · {fileName ? fileName : "Financial Tear-Sheet"}
           </div>
           <div style={{ fontSize: 28, fontWeight: 300, letterSpacing: "-0.02em", color: C.textWhite }}>
             {data.company_name}
@@ -367,4 +362,35 @@ export function TearSheet({ data, innerRef }: TearSheetProps) {
       </div>
     </div>
   );
+}
+
+// ── TearSheet: off-screen capture target ─────────────────────────────────────
+interface TearSheetProps {
+  data: ExtractedFinancials;
+  fileName?: string;
+  innerRef: React.RefObject<HTMLDivElement | null>;
+}
+
+export function TearSheet({ data, fileName, innerRef }: TearSheetProps) {
+  return (
+    // Pushed off-screen with position:absolute so html2canvas can still paint it.
+    // position:fixed can be missed by html2canvas on some mobile browsers.
+    <div
+      ref={innerRef}
+      style={{
+        position: "absolute",
+        top: -9999,
+        left: -9999,
+        zIndex: -1,
+        overflow: "hidden",
+      }}
+    >
+      <TearSheetContent data={data} fileName={fileName} />
+    </div>
+  );
+}
+
+// ── TearSheetPreview: inline, no ref, for modal preview ──────────────────────
+export function TearSheetPreview({ data, fileName }: ContentProps) {
+  return <TearSheetContent data={data} fileName={fileName} />;
 }
