@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BarChart,
@@ -16,7 +16,8 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { Printer, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { FileDown, X, TrendingUp, TrendingDown, Minus, Loader2 } from "lucide-react";
+import { TearSheet } from "@/components/TearSheet";
 import {
   Table,
   TableBody,
@@ -619,10 +620,197 @@ function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
   );
 }
 
-// ── Main component ───────────────────────���────────────────────────────────────
+// ── PDF export ───────────────────────────────────────────────────────────────
+async function exportPdf(
+  tearSheetEl: HTMLElement,
+  companyName: string,
+  onProgress: (s: string) => void
+) {
+  onProgress("Rendering layout…");
+  const html2canvas = (await import("html2canvas")).default;
+  const jsPDF = (await import("jspdf")).default;
+
+  onProgress("Capturing screenshot…");
+  const canvas = await html2canvas(tearSheetEl, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: "#09090b",
+    logging: false,
+    width: tearSheetEl.scrollWidth,
+    height: tearSheetEl.scrollHeight,
+    windowWidth: tearSheetEl.scrollWidth,
+    windowHeight: tearSheetEl.scrollHeight,
+  });
+
+  onProgress("Building PDF…");
+  const imgData = canvas.toDataURL("image/png");
+  const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const pdfW = pdf.internal.pageSize.getWidth();
+  const pdfH = pdf.internal.pageSize.getHeight();
+
+  // Scale canvas to fill the page width; paginate vertically if needed
+  const ratio = canvas.height / canvas.width;
+  const imgH = pdfW * ratio;
+  let yOffset = 0;
+  let remainingH = imgH;
+
+  while (remainingH > 0) {
+    if (yOffset > 0) pdf.addPage();
+    pdf.addImage(imgData, "PNG", 0, -yOffset, pdfW, imgH);
+    yOffset += pdfH;
+    remainingH -= pdfH;
+  }
+
+  onProgress("Downloading…");
+  const slug = companyName.toLowerCase().replace(/\s+/g, "-");
+  pdf.save(`${slug}-tear-sheet.pdf`);
+}
+
+// ── Export modal ─────────────────────────────────────────────────────────────
+interface ExportModalProps {
+  data: ExtractedFinancials;
+  tearSheetRef: React.RefObject<HTMLDivElement | null>;
+  onClose: () => void;
+}
+
+function ExportModal({ data, tearSheetRef, onClose }: ExportModalProps) {
+  const [status, setStatus] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  // Close on Escape
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  async function handleDownload() {
+    if (!tearSheetRef.current) return;
+    try {
+      await exportPdf(tearSheetRef.current, data.company_name, setStatus);
+      setDone(true);
+      setStatus(null);
+    } catch (err) {
+      console.error("[export] PDF generation failed:", err);
+      setStatus("Export failed — please try again.");
+    }
+  }
+
+  const latest = [...data.metrics].reverse().find((m) => !m.is_projected) ?? data.metrics[data.metrics.length - 1];
+  const cur = data.reporting_currency;
+  const fmtC = (v: number | null | undefined) =>
+    v == null
+      ? "—"
+      : new Intl.NumberFormat("en-US", { style: "currency", currency: cur, notation: "compact", maximumFractionDigits: 1 }).format(v);
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        style={{ backdropFilter: "blur(12px)", backgroundColor: "rgba(9,9,11,0.8)" }}
+        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 72, damping: 18 } }}
+          exit={{ opacity: 0, scale: 0.96, y: 10, transition: { duration: 0.15 } }}
+          className="relative w-full max-w-lg rounded-2xl border border-zinc-800/60 bg-zinc-950 shadow-2xl"
+        >
+          {/* Close */}
+          <button
+            onClick={onClose}
+            className="absolute right-4 top-4 rounded-lg p-1.5 text-zinc-600 transition-colors hover:text-zinc-300"
+          >
+            <X className="size-4" />
+          </button>
+
+          <div className="p-6">
+            {/* Title */}
+            <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-600 mb-1">Export</p>
+            <h3 className="text-lg font-light text-white tracking-tight">Financial Tear-Sheet</h3>
+            <p className="mt-1 text-[11px] text-zinc-500">
+              Landscape A4 PDF · 1200px desktop layout · Dark theme
+            </p>
+
+            <div className="mt-5 h-px bg-zinc-800/60" />
+
+            {/* Preview summary */}
+            <div className="mt-5 rounded-xl border border-zinc-800/50 bg-zinc-900/50 p-4 space-y-3">
+              <div className="flex justify-between">
+                <span className="text-[10px] uppercase tracking-widest text-zinc-600">Company</span>
+                <span className="text-[12px] text-zinc-300 font-light">{data.company_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[10px] uppercase tracking-widest text-zinc-600">Periods</span>
+                <span className="text-[12px] text-zinc-300 font-light">{data.metrics.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[10px] uppercase tracking-widest text-zinc-600">Latest Revenue</span>
+                <span className="text-[12px] text-zinc-300 font-light">{fmtC(latest?.revenue)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[10px] uppercase tracking-widest text-zinc-600">Latest EBITDA</span>
+                <span className={cn("text-[12px] font-light", latest?.ebitda == null ? "text-zinc-500" : latest.ebitda >= 0 ? "text-emerald-300" : "text-red-300")}>
+                  {fmtC(latest?.ebitda)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[10px] uppercase tracking-widest text-zinc-600">Confidence</span>
+                <span className="text-[12px] text-zinc-300 font-light">{Math.round(data.confidence_score * 100)}%</span>
+              </div>
+            </div>
+
+            {/* Status / done message */}
+            {(status || done) && (
+              <div className={cn(
+                "mt-4 flex items-center gap-2 rounded-xl px-4 py-2.5 text-[11px]",
+                done ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-300" : "bg-zinc-800/60 text-zinc-400"
+              )}>
+                {!done && <Loader2 className="size-3.5 animate-spin shrink-0" />}
+                <span>{done ? "PDF downloaded successfully." : status}</span>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={onClose}
+                className="flex-1 rounded-xl border border-zinc-800/60 bg-zinc-900/50 py-2.5 text-[11px] uppercase tracking-widest text-zinc-500 transition-colors hover:text-zinc-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDownload}
+                disabled={!!status}
+                className={cn(
+                  "flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-[11px] uppercase tracking-widest transition-all",
+                  status
+                    ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                    : "bg-zinc-100 text-zinc-900 hover:bg-white"
+                )}
+              >
+                <FileDown className="size-3.5" />
+                {status ? "Working…" : "Download PDF"}
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ── Main component ───────────────────────────────────────────────────────────
 export function InvestorDashboard({ data }: { data: ExtractedFinancials }) {
   const cur = data.reporting_currency;
   const [activeTab, setActiveTab] = useState<"metrics" | "valuation">("metrics");
+  const [exportOpen, setExportOpen] = useState(false);
+  const tearSheetRef = useRef<HTMLDivElement>(null);
 
   const latest: FinancialMetrics | undefined =
     [...data.metrics].reverse().find((m) => !m.is_projected) ??
@@ -748,12 +936,12 @@ export function InvestorDashboard({ data }: { data: ExtractedFinancials }) {
             </p>
           </div>
           <button
-            onClick={() => window.print()}
+            onClick={() => setExportOpen(true)}
             className="mt-1 inline-flex items-center gap-2 self-start rounded-xl border border-zinc-800/60 bg-zinc-900/50 px-4 py-2 text-[11px] uppercase tracking-widest text-zinc-400 backdrop-blur-sm transition-colors hover:border-zinc-700 hover:text-zinc-200"
             data-print-hide
           >
-            <Printer className="size-3.5" />
-            Print Memo
+            <FileDown className="size-3.5" />
+            Export PDF
           </button>
         </motion.div>
 
@@ -1210,6 +1398,18 @@ export function InvestorDashboard({ data }: { data: ExtractedFinancials }) {
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* Hidden tear-sheet captured by html2canvas — never visible to user */}
+      <TearSheet data={data} innerRef={tearSheetRef} />
+
+      {/* Export modal */}
+      {exportOpen && (
+        <ExportModal
+          data={data}
+          tearSheetRef={tearSheetRef}
+          onClose={() => setExportOpen(false)}
+        />
+      )}
     </div>
   );
 }
