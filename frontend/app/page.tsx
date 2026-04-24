@@ -149,7 +149,7 @@ function IdleView({ onFile }: { onFile: (f: File) => void }) {
         {/* Title */}
         <motion.h1
           variants={fadeUp}
-          className="text-5xl font-extralight tracking-tighter text-white"
+          className="text-5xl font-extralight tracking-tighter text-white text-center"
         >
           Asymmetrica Valuations
         </motion.h1>
