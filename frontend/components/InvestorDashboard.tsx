@@ -344,11 +344,27 @@ interface ValuationViewProps {
   latest: FinancialMetrics | undefined;
   cur: string;
   currencyFmt: (v: number) => string;
+  themeOverride?: "dark" | "light";
 }
 
-function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
+function ValuationView({ data, latest, cur, currencyFmt, themeOverride }: ValuationViewProps) {
   const [scenario, setScenario] = useState<"base" | "stress">("base");
   const CT = useChartTheme();
+
+  // When rendering inside the hidden export container, override chart colors
+  // to match exportTheme instead of relying on the global next-themes state.
+  const isDarkOverride = themeOverride != null ? themeOverride === "dark" : CT.isDark;
+  const chartTheme = themeOverride != null ? {
+    tooltipStyle: isDarkOverride
+      ? { backgroundColor: "#09090b", borderColor: "#27272a", borderRadius: "8px", fontSize: "12px", color: "#fff", boxShadow: "0 4px 24px rgba(0,0,0,0.6)" }
+      : { backgroundColor: "#ffffff", borderColor: "#e4e4e7", borderRadius: "8px", fontSize: "12px", color: "#111827", boxShadow: "0 4px 24px rgba(0,0,0,0.1)" },
+    axisTickFill: isDarkOverride ? "#d4d4d8" : "#52525b",
+    axisLine:     isDarkOverride ? "#3f3f46" : "#d4d4d8",
+    grid:         isDarkOverride ? "#27272a" : "#e4e4e7",
+    itemColor:    isDarkOverride ? "#e4e4e7" : "#374151",
+    labelColor:   isDarkOverride ? "#a1a1aa" : "#6b7280",
+    cursorFill:   isDarkOverride ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
+  } as const : CT;
 
   // ── DCF assumption constants ──────────���────────────────────────────────────
   const TAX_RATE   = 0.25;   // 25% effective tax rate
@@ -433,30 +449,30 @@ function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
             <div className="h-[260px] px-2 pt-2 pb-2">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={waterfallData} barCategoryGap="28%">
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={CT.grid} />
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={chartTheme.grid} />
                   <XAxis
                     dataKey="name"
-                    tick={{ fill: CT.axisTickFill, fontSize: 11 }}
-                    axisLine={{ stroke: CT.axisLine }}
+                    tick={{ fill: chartTheme.axisTickFill, fontSize: 11 }}
+                    axisLine={{ stroke: chartTheme.axisLine }}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fill: CT.axisTickFill, fontSize: 11 }}
-                    axisLine={{ stroke: CT.axisLine }}
+                    tick={{ fill: chartTheme.axisTickFill, fontSize: 11 }}
+                    axisLine={{ stroke: chartTheme.axisLine }}
                     tickLine={false}
                     tickFormatter={(v) => compactNum(v).replace(/[A-Za-z]+$/, "")}
                     width={48}
                   />
                   <Tooltip
-                    contentStyle={CT.tooltipStyle}
-                    itemStyle={{ color: CT.itemColor }}
-                    labelStyle={{ color: CT.labelColor }}
+                    contentStyle={chartTheme.tooltipStyle}
+                    itemStyle={{ color: chartTheme.itemColor }}
+                    labelStyle={{ color: chartTheme.labelColor }}
                     formatter={(v, name) =>
                       name === "spacer"
                         ? null
                         : [fmtCurrency(v as number, cur), ""]
                     }
-                    cursor={{ fill: CT.cursorFill }}
+                    cursor={{ fill: chartTheme.cursorFill }}
                   />
                   {/* Invisible spacer floats the bars */}
                   <Bar dataKey="spacer" stackId="wf" fill="transparent" legendType="none" />
@@ -1655,7 +1671,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
             animate target immediately, bypassing opacity-0/blur initial states */}
         <MotionConfig reducedMotion="always">
           <div
-            className="export-section w-full mb-10"
+            className={`export-section w-full mb-10${exportTheme === "dark" ? " dark" : ""}`}
             style={{ backgroundColor: exportTheme === "dark" ? "#09090b" : "#FAF9F6", padding: 0 }}
           >
             <ValuationView
@@ -1663,6 +1679,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
               latest={latest}
               cur={cur}
               currencyFmt={currencyFmt}
+              themeOverride={exportTheme}
             />
           </div>
         </MotionConfig>
