@@ -672,7 +672,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
   const chartMax = Math.max(1, ...chartData.flatMap((d) => [Math.abs(d.revenue ?? 0), Math.abs(d.ebitda ?? 0), Math.abs(d.cash ?? 0), Math.abs(d.net_income ?? 0)]));
   const unit = chartMax >= 1e9 ? `billions · ${cur}` : chartMax >= 1e6 ? `millions · ${cur}` : chartMax >= 1e3 ? `thousands · ${cur}` : cur;
 
-  const secPad: React.CSSProperties = { backgroundColor: bg, padding: 0, margin: 0, width: "100%" };
+  const secPad: React.CSSProperties = { backgroundColor: bg, padding: 0, paddingBottom: 24, width: "100%" };
   const panelStyle = (extra?: React.CSSProperties): React.CSSProperties => ({ borderRadius: 12, border: `1px solid ${brd}`, backgroundColor: card, overflow: "hidden", ...extra });
   const panelHeader = (title: string, sub?: string) => (
     <div style={{ padding: "14px 16px 0" }}>
@@ -692,7 +692,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
 
   const kpiCards = [
     { label: "Revenue",      value: fmtC(latest?.revenue),       sub: latest?.period },
-    { label: "EBITDA",       value: fmtC(latest?.ebitda),         sub: latest?.period, color: (latest?.ebitda ?? 0) >= 0 ? "#6ee7b7" : "#fca5a5" },
+    { label: "EBITDA",       value: fmtC(latest?.ebitda),         sub: latest?.period, color: (latest?.ebitda ?? 0) >= 0 ? (isDark ? "#34d399" : "#047857") : (isDark ? "#fca5a5" : "#b91c1c") },
     { label: "Cash Balance", value: fmtC(latest?.cash_balance),   sub: latest?.period },
     { label: "Runway",       value: fmtMoE(latest?.implied_runway_months), sub: "implied" },
   ];
@@ -701,7 +701,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
     <div style={{ width: 1400, backgroundColor: bg, fontFamily: "var(--font-geist-sans, system-ui, sans-serif)" }}>
 
       {/* ── Section 1: Header + KPI grid ── */}
-      <div className="export-section w-full" style={{ ...secPad, paddingTop: 36, paddingBottom: 28 }}>
+      <div className="export-section w-full mb-10" style={{ ...secPad, paddingTop: 36, paddingBottom: 28 }}>
         <div style={{ marginBottom: 20 }}>
           <p style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: muted, margin: 0 }}>
             Asymmetrica · Investment Due Diligence
@@ -725,7 +725,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
       </div>
 
       {/* ── Section 2: Revenue vs EBITDA + Cash Balance ── */}
-      <div className="export-section w-full" style={secPad}>
+      <div className="export-section w-full mb-10" style={secPad}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <div style={panelStyle()}>
             {panelHeader("Revenue vs EBITDA", `in ${unit}`)}
@@ -764,7 +764,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
       </div>
 
       {/* ── Section 3: Margin Evolution + Profitability ── */}
-      <div className="export-section w-full" style={secPad}>
+      <div className="export-section w-full mb-10" style={secPad}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <div style={panelStyle()}>
             {panelHeader("Margin Evolution", "in percent")}
@@ -808,7 +808,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
       </div>
 
       {/* ── Section 4: Metrics table ── */}
-      <div className="export-section w-full" style={secPad}>
+      <div className="export-section w-full mb-10" style={secPad}>
         <div style={panelStyle({ padding: "16px 0 8px" })}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 16px 12px" }}>
             <p style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", color: muted, margin: 0 }}>Extracted Metrics by Period</p>
@@ -871,8 +871,9 @@ async function exportPdf(
   const pdf = new jsPDF("l", "mm", "a4");
   const pageWidth = 297;
   const pageHeight = 210;
-  const margin = 12;
-  let currentY = margin;
+  const marginX = 12;   // left / right gutter
+  const marginY = 6;    // top / bottom gutter
+  let currentY = marginY;
   let firstSection = true;
 
   // Paint the first page background before placing any images
@@ -884,16 +885,16 @@ async function exportPdf(
     onProgress(`Capturing section ${i + 1} of ${sections.length}…`);
     const imgData = await toPng(section, { backgroundColor: bgColor, pixelRatio: 2 });
     const imgProps = pdf.getImageProperties(imgData);
-    const scaledHeight = (imgProps.height * (pageWidth - margin * 2)) / imgProps.width;
+    const scaledHeight = (imgProps.height * (pageWidth - marginX * 2)) / imgProps.width;
 
-    if (!firstSection && currentY + scaledHeight > pageHeight - margin && currentY !== margin) {
+    if (!firstSection && currentY + scaledHeight > pageHeight - marginY && currentY !== marginY) {
       pdf.addPage();
-      currentY = margin;
+      currentY = marginY;
       // Paint new page background before placing image
       pdf.setFillColor(bgR, bgG, bgB);
       pdf.rect(0, 0, pageWidth, pageHeight, "F");
     }
-    pdf.addImage(imgData, "PNG", margin, currentY, pageWidth - margin * 2, scaledHeight);
+    pdf.addImage(imgData, "PNG", marginX, currentY, pageWidth - marginX * 2, scaledHeight);
     currentY += scaledHeight;
     firstSection = false;
   }
@@ -1641,21 +1642,21 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
         </AnimatePresence>
       </motion.div>
 
-      {/* Hidden export container — in-viewport but invisible so browser fully paints it */}
+      {/* Hidden export container — fixed off-screen so it never affects document scroll */}
       <div
         ref={tearSheetRef}
-        className="absolute top-0 left-0 opacity-0 -z-50 pointer-events-none"
-        style={{ width: 1400, height: "max-content", padding: 0, margin: 0, overflow: "visible" }}
+        className="fixed top-0 left-[-10000px] w-[1200px] h-max overflow-hidden pointer-events-none"
+        style={{ padding: 0, margin: 0 }}
       >
         {/* Sections 1-4: operating metrics (inline-styled, theme-isolated) */}
         <ExportContent data={data} theme={exportTheme} />
 
-        {/* Section 5: valuation analysis — rendered with MotionConfig so Framer Motion
-            jumps directly to the animate target, bypassing opacity-0/blur initial states */}
+        {/* Section 5: valuation analysis — MotionConfig forces Framer Motion to the
+            animate target immediately, bypassing opacity-0/blur initial states */}
         <MotionConfig reducedMotion="always">
           <div
-            className="export-section w-full"
-            style={{ backgroundColor: exportTheme === "dark" ? "#09090b" : "#FAF9F6", padding: 0, margin: 0 }}
+            className="export-section w-full mb-10"
+            style={{ backgroundColor: exportTheme === "dark" ? "#09090b" : "#FAF9F6", padding: 0 }}
           >
             <ValuationView
               data={data}
