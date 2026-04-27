@@ -619,164 +619,41 @@ function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
   );
 }
 
-// ── Color resolver: canvas converts any modern CSS color → rgb ───────────────
-// Uses the browser's own canvas fill parser so oklch/oklab/lab/lch/color-mix
-// are all handled correctly, including alpha channels.
-function resolveColor(value: string): string {
-  try {
-    const cvs = document.createElement("canvas");
-    cvs.width = cvs.height = 1;
-    const ctx = cvs.getContext("2d");
-    if (!ctx) return value;
-    ctx.fillStyle = value;
-    ctx.fillRect(0, 0, 1, 1);
-    const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
-    if (a === 0) return "transparent";
-    if (a < 255) return `rgba(${r},${g},${b},${(a / 255).toFixed(3)})`;
-    return `rgb(${r},${g},${b})`;
-  } catch {
-    return value;
-  }
-}
-
-// ── Convert all modern color functions in a CSS string to rgb() ───────────────
-// Three-pass approach to handle every form Tailwind v4 / shadcn can emit:
-//
-//   Pass 1 — ok-prefixed functions: oklab(...) oklch(...)
-//            Order matters: oklab before lab so we never partially match inside
-//            `oklab(...)` leaving an orphaned `ok` prefix.
-//
-//   Pass 2 — legacy functions that html2canvas also can't parse: lab(...) lch(...)
-//
-//   Pass 3 — color-mix(in oklab/oklch, ...) used by Tailwind v4 for opacity
-//            variants like bg-zinc-900/40. The nested-paren pattern
-//            (?:[^)(]|\([^)]*\))* allows one level of nesting (rgb(...) inside).
-function convertModernColors(css: string): string {
-  return css
-    .replace(/ok(?:lch|lab)\([^)]+\)/g, resolveColor)
-    .replace(/(?:lch|lab)\([^)]+\)/g, resolveColor)
-    .replace(/color-mix\(\s*in\s+ok(?:lch|lab)(?:[^)(]|\([^)]*\))*\)/g, resolveColor);
-}
-
-// ── Pre-fetch all stylesheets, strip modern colors, return as one CSS string ──
-async function prepareStyles(): Promise<string> {
-  const parts: string[] = [];
-
-  for (const el of Array.from(document.querySelectorAll("style"))) {
-    parts.push(convertModernColors(el.textContent ?? ""));
-  }
-
-  await Promise.all(
-    Array.from(
-      document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]')
-    ).map(async (link) => {
-      try {
-        const res = await fetch(link.href);
-        const text = await res.text();
-        parts.push(convertModernColors(text));
-      } catch {
-        /* skip unreachable sheets */
-      }
-    })
-  );
-
-  return parts.join("\n");
-}
-
-// ── DOM-walker failsafe ───────────────────────────────────────────────────────
-// Walks every HTML element inside the capture container and replaces any
-// computed color property that still contains a modern color function with an
-// inline rgb() override. This catches values injected by third-party libraries
-// after stylesheet processing (framer-motion, radix, etc.).
-// SVG elements are intentionally skipped — chart colors use hardcoded hex.
-function sanitizeExportColors(root: Element): void {
-  const PROPS = [
-    "color",
-    "background-color",
-    "border-top-color",
-    "border-right-color",
-    "border-bottom-color",
-    "border-left-color",
-    "outline-color",
-    "text-decoration-color",
-  ];
-  const isBad = (v: string) =>
-    v.includes("oklch") ||
-    v.includes("oklab") ||
-    v.includes("lab(") ||
-    v.includes("lch(") ||
-    v.includes("color-mix");
-
-  const walk = (el: Element) => {
-    if (el instanceof HTMLElement) {
-      const cs = getComputedStyle(el);
-      for (const prop of PROPS) {
-        const val = cs.getPropertyValue(prop);
-        if (val && isBad(val)) el.style.setProperty(prop, resolveColor(val));
-      }
-    }
-    for (const child of Array.from(el.children)) walk(child);
-  };
-
-  walk(root);
-}
-
 // ── PDF export ───────────────────────────────────────────────────────────────
+// Uses html-to-image (SVGForeignObject renderer) instead of html2canvas.
+// The browser renders the DOM natively into the SVG, so oklch / oklab /
+// color-mix and every other modern CSS feature work without any conversion.
 async function exportPdf(
   exportEl: HTMLElement,
   companyName: string,
   onProgress: (s: string) => void
 ) {
-  onProgress("Preparing styles…");
-  const convertedCss = await prepareStyles();
-
-  // Failsafe: force-resolve any surviving modern color values as inline rgb()
-  // overrides on the live element so they carry through into html2canvas's clone.
-  sanitizeExportColors(exportEl);
-
   onProgress("Rendering layout…");
-  const html2canvas = (await import("html2canvas")).default;
+  const { toPng } = await import("html-to-image");
   const jsPDF = (await import("jspdf")).default;
 
   onProgress("Capturing screenshot…");
-  const canvas = await html2canvas(exportEl, {
-    scale: 2,
-    useCORS: true,
-    allowTaint: true,
+  const dataUrl = await toPng(exportEl, {
     backgroundColor: "#09090b",
-    logging: false,
+    pixelRatio: 2,
     width: exportEl.scrollWidth,
     height: exportEl.scrollHeight,
-    windowWidth: exportEl.scrollWidth,
-    windowHeight: exportEl.scrollHeight,
-    x: 0,
-    y: 0,
-    onclone: (clonedDoc: Document) => {
-      // Replace all stylesheets with the pre-converted version.
-      // Every Tailwind/shadcn class survives — only color function syntax changes.
-      clonedDoc
-        .querySelectorAll('style, link[rel="stylesheet"]')
-        .forEach((el) => el.remove());
-      const style = clonedDoc.createElement("style");
-      style.textContent = convertedCss;
-      clonedDoc.head.appendChild(style);
-    },
   });
 
   onProgress("Building PDF…");
-  const imgData = canvas.toDataURL("image/png");
   const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pdfW = pdf.internal.pageSize.getWidth();
   const pdfH = pdf.internal.pageSize.getHeight();
 
-  const ratio = canvas.height / canvas.width;
+  // Derive aspect ratio from the element dimensions (pixelRatio doesn't affect it)
+  const ratio = exportEl.scrollHeight / exportEl.scrollWidth;
   const imgH = pdfW * ratio;
   let yOffset = 0;
   let remainingH = imgH;
 
   while (remainingH > 0) {
     if (yOffset > 0) pdf.addPage();
-    pdf.addImage(imgData, "PNG", 0, -yOffset, pdfW, imgH);
+    pdf.addImage(dataUrl, "PNG", 0, -yOffset, pdfW, imgH);
     yOffset += pdfH;
     remainingH -= pdfH;
   }
@@ -788,7 +665,7 @@ async function exportPdf(
 // ── ExportContent: pixel-perfect layout using real dashboard components ───────
 // Renders Operating Metrics then a CSS page-break then Valuation Analysis.
 // Wrapping style overrides all CSS vars with hex so dark theme is guaranteed
-// regardless of the html class state during html2canvas capture.
+// regardless of the html class state during capture.
 function ExportContent({ data, fileName }: { data: ExtractedFinancials; fileName?: string }) {
   const cur = data.reporting_currency;
 
@@ -1811,7 +1688,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
         </AnimatePresence>
       </motion.div>
 
-      {/* Hidden export container — pushed off-screen, captured by html2canvas */}
+      {/* Hidden export container — pushed off-screen, captured by html-to-image */}
       <div
         ref={tearSheetRef}
         style={{
