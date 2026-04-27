@@ -143,7 +143,7 @@ function IdleView({ onFile }: { onFile: (f: File) => void }) {
           {/* Glow halo */}
           <BarChart3 className="absolute size-10 text-indigo-400/25 blur-[12px]" />
           {/* Crisp icon */}
-          <BarChart3 className="relative size-10 text-zinc-300" />
+          <BarChart3 className="relative size-10 text-zinc-600 dark:text-zinc-300" />
         </motion.div>
 
         {/* Title */}
@@ -378,7 +378,7 @@ function SuccessView({
         {/* Logo mark */}
         <div className="relative flex size-7 items-center justify-center">
           <BarChart3 className="absolute size-4 text-indigo-400/20 blur-[6px]" />
-          <BarChart3 className="relative size-4 text-zinc-400" />
+          <BarChart3 className="relative size-4 text-zinc-600 dark:text-zinc-400" />
         </div>
         <span className="text-sm font-extralight tracking-[0.12em] text-zinc-700 dark:text-zinc-300">
           Asymmetrica Valuations

@@ -102,17 +102,17 @@ function fmtMonths(v: number | null | undefined): string {
 
 // ── Runway signal ───────────────────────���─────────────────────────────────────
 function runwayClass(mo: number | null | undefined) {
-  if (mo == null) return "text-zinc-600";
-  if (mo < 6) return "text-red-300";
-  if (mo < 12) return "text-amber-300";
-  if (mo < 18) return "text-yellow-300";
-  return "text-emerald-300";
+  if (mo == null) return "text-zinc-500";
+  if (mo < 6) return "text-red-600 dark:text-red-400";
+  if (mo < 12) return "text-amber-600 dark:text-amber-400";
+  if (mo < 18) return "text-yellow-600 dark:text-yellow-400";
+  return "text-emerald-700 dark:text-emerald-400";
 }
 function runwayIcon(mo: number | null | undefined) {
-  if (mo == null) return <Minus className="size-4 text-zinc-600" />;
-  if (mo < 6) return <TrendingDown className="size-4 text-red-300" />;
-  if (mo < 18) return <Minus className="size-4 text-amber-300" />;
-  return <TrendingUp className="size-4 text-emerald-300" />;
+  if (mo == null) return <Minus className="size-4 text-zinc-500" />;
+  if (mo < 6) return <TrendingDown className="size-4 text-red-600 dark:text-red-400" />;
+  if (mo < 18) return <Minus className="size-4 text-amber-600 dark:text-amber-400" />;
+  return <TrendingUp className="size-4 text-emerald-700 dark:text-emerald-400" />;
 }
 
 // ── PremiumCard: glassmorphism + mouse-tracking border spotlight ──────────────
@@ -605,7 +605,7 @@ function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
                   FMV of Equity
                 </p>
                 <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-emerald-700/50 to-transparent" />
-                <p className="relative mt-3 text-4xl font-light text-emerald-200 tabular-nums">
+                <p className="relative mt-3 text-4xl font-light text-emerald-700 dark:text-emerald-200 tabular-nums">
                   <NumberTicker value={equityValue} format={currencyFmt} delay={0.4} />
                 </p>
                 <p className="relative mt-1 font-mono text-[10px] text-zinc-500">
@@ -1227,8 +1227,8 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
                     latest?.ebitda == null
                       ? ""
                       : latest.ebitda >= 0
-                      ? "text-emerald-300"
-                      : "text-red-300"
+                      ? "text-emerald-700 dark:text-emerald-400"
+                      : "text-red-600 dark:text-red-400"
                   }
                 />
                 <KpiCard
@@ -1550,8 +1550,8 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
                                 m.ebitda == null
                                   ? "text-zinc-600"
                                   : m.ebitda >= 0
-                                  ? "text-emerald-300/80"
-                                  : "text-red-300/80"
+                                  ? "text-emerald-700 dark:text-emerald-400/80"
+                                  : "text-red-600 dark:text-red-400/80"
                               )}
                             >
                               {fmtCurrency(m.ebitda, cur)}
@@ -1562,8 +1562,8 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
                                 m.net_income == null
                                   ? "text-zinc-600"
                                   : m.net_income >= 0
-                                  ? "text-emerald-300/80"
-                                  : "text-red-300/80"
+                                  ? "text-emerald-700 dark:text-emerald-400/80"
+                                  : "text-red-600 dark:text-red-400/80"
                               )}
                             >
                               {fmtCurrency(m.net_income, cur)}
