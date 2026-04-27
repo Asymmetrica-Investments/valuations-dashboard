@@ -16,8 +16,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { FileDown, X, TrendingUp, TrendingDown, Minus, Loader2 } from "lucide-react";
-import { TearSheet, TearSheetPreview } from "@/components/TearSheet";
+import { FileDown, X, TrendingUp, TrendingDown, Minus, Loader2, Sun, Moon } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -632,65 +631,263 @@ function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
   );
 }
 
+// ── ExportContent ─────────────────────────────────────────────────────────────
+// Fully inline-styled so it renders correctly regardless of the global theme.
+function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dark" | "light" }) {
+  const isDark = theme === "dark";
+  const bg    = isDark ? "#09090b" : "#FAF9F6";
+  const card  = isDark ? "#111111" : "#ffffff";
+  const brd   = isDark ? "rgba(255,255,255,0.08)" : "#e5e7eb";
+  const txt   = isDark ? "#fafafa" : "#111827";
+  const muted = isDark ? "#71717a" : "#6b7280";
+  const dim   = isDark ? "#52525b" : "#9ca3af";
+
+  const cGrid = isDark ? "#27272a" : "#e4e4e7";
+  const cAxis = isDark ? "#d4d4d8" : "#52525b";
+  const cLine = isDark ? "#3f3f46" : "#d4d4d8";
+  const cItem = isDark ? "#e4e4e7" : "#374151";
+  const cLbl  = isDark ? "#a1a1aa" : "#6b7280";
+  const cCur  = isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)";
+  const cCurL = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)";
+  const tStyle: React.CSSProperties = { backgroundColor: card, borderColor: brd, borderRadius: 8, fontSize: 11, color: txt };
+
+  const cur = data.reporting_currency;
+  const latest = [...data.metrics].reverse().find((m) => !m.is_projected) ?? data.metrics.at(-1);
+  const chartData = data.metrics.map((m) => ({
+    period: m.period,
+    revenue: m.revenue,
+    ebitda: m.ebitda,
+    cash: m.cash_balance,
+    gross_margin_pct: m.gross_margin_pct,
+    ebitda_margin_pct: m.ebitda != null && m.revenue ? (m.ebitda / m.revenue) * 100 : null,
+    net_income: m.net_income,
+  }));
+
+  const fmtC = (v: number | null | undefined) =>
+    v == null ? "—" : new Intl.NumberFormat("en-US", { style: "currency", currency: cur, notation: "compact", maximumFractionDigits: 1 }).format(v);
+  const fmtPctE = (v: number | null | undefined) => v == null ? "—" : `${v.toFixed(1)}%`;
+  const fmtRatioE = (v: number | null | undefined) => v == null ? "—" : `${v.toFixed(1)}×`;
+  const fmtMoE = (v: number | null | undefined) => v == null ? "—" : `${v.toFixed(1)} mo`;
+
+  const chartMax = Math.max(1, ...chartData.flatMap((d) => [Math.abs(d.revenue ?? 0), Math.abs(d.ebitda ?? 0), Math.abs(d.cash ?? 0), Math.abs(d.net_income ?? 0)]));
+  const unit = chartMax >= 1e9 ? `billions · ${cur}` : chartMax >= 1e6 ? `millions · ${cur}` : chartMax >= 1e3 ? `thousands · ${cur}` : cur;
+
+  const secPad: React.CSSProperties = { backgroundColor: bg, padding: "0 48px 28px" };
+  const panelStyle = (extra?: React.CSSProperties): React.CSSProperties => ({ borderRadius: 12, border: `1px solid ${brd}`, backgroundColor: card, overflow: "hidden", ...extra });
+  const panelHeader = (title: string, sub?: string) => (
+    <div style={{ padding: "14px 16px 0" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <p style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", color: muted, margin: 0 }}>{title}</p>
+        <div style={{ flex: 1, height: 1, background: `linear-gradient(to right, ${brd}, transparent)` }} />
+      </div>
+      {sub && <p style={{ fontSize: 9, color: dim, letterSpacing: "0.1em", textTransform: "uppercase", margin: "4px 0 0" }}>{sub}</p>}
+    </div>
+  );
+  const sectionLabel = (label: string) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+      <p style={{ fontSize: 8, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: dim, whiteSpace: "nowrap", margin: 0 }}>{label}</p>
+      <div style={{ flex: 1, height: 1, backgroundColor: brd }} />
+    </div>
+  );
+
+  const kpiCards = [
+    { label: "Revenue",      value: fmtC(latest?.revenue),       sub: latest?.period },
+    { label: "EBITDA",       value: fmtC(latest?.ebitda),         sub: latest?.period, color: (latest?.ebitda ?? 0) >= 0 ? "#6ee7b7" : "#fca5a5" },
+    { label: "Cash Balance", value: fmtC(latest?.cash_balance),   sub: latest?.period },
+    { label: "Runway",       value: fmtMoE(latest?.implied_runway_months), sub: "implied" },
+  ];
+
+  return (
+    <div style={{ width: 1400, backgroundColor: bg, fontFamily: "var(--font-geist-sans, system-ui, sans-serif)" }}>
+
+      {/* ── Section 1: Header + KPI grid ── */}
+      <div className="export-section" style={{ ...secPad, padding: "36px 48px 28px" }}>
+        <div style={{ marginBottom: 20 }}>
+          <p style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: muted, margin: 0 }}>
+            Asymmetrica · Investment Due Diligence
+          </p>
+          <h1 style={{ fontSize: 30, fontWeight: 300, color: txt, margin: "6px 0 0", letterSpacing: "-0.02em" }}>{data.company_name}</h1>
+          <p style={{ fontSize: 10, color: muted, margin: "4px 0 0", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            {data.reporting_period_type} · {cur} · {Math.round(data.confidence_score * 100)}% confidence
+          </p>
+        </div>
+        {sectionLabel("Operating Metrics")}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+          {kpiCards.map(({ label, value, sub, color }) => (
+            <div key={label} style={panelStyle({ padding: "16px 20px" })}>
+              <p style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", color: muted, margin: 0 }}>{label}</p>
+              <div style={{ height: 1, width: 32, background: `linear-gradient(to right, ${dim}, transparent)`, margin: "10px 0" }} />
+              <p style={{ fontSize: 32, fontWeight: 300, color: color ?? txt, margin: 0, lineHeight: 1 }}>{value}</p>
+              {sub && <p style={{ fontSize: 10, color: dim, margin: "6px 0 0" }}>{sub}</p>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Section 2: Revenue vs EBITDA + Cash Balance ── */}
+      <div className="export-section" style={secPad}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={panelStyle()}>
+            {panelHeader("Revenue vs EBITDA", `in ${unit}`)}
+            <div style={{ height: 230, padding: "8px 4px 4px" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} barGap={3} barCategoryGap="32%">
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={cGrid} />
+                  <XAxis dataKey="period" tick={{ fill: cAxis, fontSize: 10 }} axisLine={{ stroke: cLine }} tickLine={false} />
+                  <YAxis tick={{ fill: cAxis, fontSize: 10 }} axisLine={{ stroke: cLine }} tickLine={false} tickFormatter={(v) => compactNum(v).replace(/[A-Za-z]+$/, "")} width={44} />
+                  <Tooltip contentStyle={tStyle} itemStyle={{ color: cItem }} labelStyle={{ color: cLbl }} formatter={(v) => fmtC(v as number)} cursor={{ fill: cCur }} />
+                  <Legend wrapperStyle={{ fontSize: 9, color: cAxis, paddingTop: 6 }} iconType="square" iconSize={6} />
+                  <ReferenceLine y={0} stroke={P.zero} />
+                  <Bar dataKey="revenue" name="Revenue" radius={[3,3,0,0]} fill={P.revenue} isAnimationActive={false} />
+                  <Bar dataKey="ebitda" name="EBITDA" radius={[3,3,0,0]} isAnimationActive={false}>
+                    {chartData.map((e, i) => <Cell key={i} fill={(e.ebitda ?? 0) >= 0 ? P.ebitdaPos : P.ebitdaNeg} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div style={panelStyle()}>
+            {panelHeader("Cash Balance", `in ${unit}`)}
+            <div style={{ height: 230, padding: "8px 4px 4px" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={cGrid} />
+                  <XAxis dataKey="period" tick={{ fill: cAxis, fontSize: 10 }} axisLine={{ stroke: cLine }} tickLine={false} padding={{ left: 20, right: 20 }} />
+                  <YAxis tick={{ fill: cAxis, fontSize: 10 }} axisLine={{ stroke: cLine }} tickLine={false} tickFormatter={(v) => compactNum(v).replace(/[A-Za-z]+$/, "")} width={44} />
+                  <Tooltip contentStyle={tStyle} itemStyle={{ color: cItem }} labelStyle={{ color: cLbl }} formatter={(v) => fmtC(v as number)} cursor={{ stroke: cCurL }} />
+                  <Line type="monotone" dataKey="cash" name="Cash" stroke={P.cash} strokeWidth={1.5} dot={{ r: 2.5, fill: P.cash, strokeWidth: 0 }} activeDot={{ r: 4, strokeWidth: 0 }} isAnimationActive={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Section 3: Margin Evolution + Profitability ── */}
+      <div className="export-section" style={secPad}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={panelStyle()}>
+            {panelHeader("Margin Evolution", "in percent")}
+            <div style={{ height: 230, padding: "8px 4px 4px" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={cGrid} />
+                  <XAxis dataKey="period" tick={{ fill: cAxis, fontSize: 10 }} axisLine={{ stroke: cLine }} tickLine={false} padding={{ left: 20, right: 20 }} />
+                  <YAxis tick={{ fill: cAxis, fontSize: 10 }} axisLine={{ stroke: cLine }} tickLine={false} tickFormatter={(v) => `${v.toFixed(0)}%`} width={40} />
+                  <Tooltip contentStyle={tStyle} itemStyle={{ color: cItem }} labelStyle={{ color: cLbl }} formatter={(v) => `${(v as number).toFixed(1)}%`} cursor={{ stroke: cCurL }} />
+                  <Legend wrapperStyle={{ fontSize: 9, color: cAxis, paddingTop: 6 }} iconType="square" iconSize={6} />
+                  <ReferenceLine y={0} stroke={P.zero} />
+                  <Line type="monotone" dataKey="gross_margin_pct" name="Gross Margin" stroke={P.grossMargin} strokeWidth={1.5} dot={{ r: 2.5, fill: P.grossMargin, strokeWidth: 0 }} activeDot={{ r: 4, strokeWidth: 0 }} connectNulls isAnimationActive={false} />
+                  <Line type="monotone" dataKey="ebitda_margin_pct" name="EBITDA Margin" stroke={P.ebitdaMargin} strokeWidth={1.5} strokeDasharray="4 3" dot={{ r: 2.5, fill: P.ebitdaMargin, strokeWidth: 0 }} activeDot={{ r: 4, strokeWidth: 0 }} connectNulls isAnimationActive={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div style={panelStyle()}>
+            {panelHeader("Profitability Conversion", `in ${unit}`)}
+            <div style={{ height: 230, padding: "8px 4px 4px" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} barGap={4} barCategoryGap="30%">
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={cGrid} />
+                  <XAxis dataKey="period" tick={{ fill: cAxis, fontSize: 10 }} axisLine={{ stroke: cLine }} tickLine={false} />
+                  <YAxis tick={{ fill: cAxis, fontSize: 10 }} axisLine={{ stroke: cLine }} tickLine={false} tickFormatter={(v) => compactNum(v).replace(/[A-Za-z]+$/, "")} width={44} />
+                  <Tooltip contentStyle={tStyle} itemStyle={{ color: cItem }} labelStyle={{ color: cLbl }} formatter={(v) => fmtC(v as number)} cursor={{ fill: cCur }} />
+                  <Legend wrapperStyle={{ fontSize: 9, color: cAxis, paddingTop: 6 }} iconType="square" iconSize={6} />
+                  <ReferenceLine y={0} stroke={P.zero} />
+                  <Bar dataKey="ebitda" name="EBITDA" radius={[3,3,0,0]} isAnimationActive={false}>
+                    {chartData.map((e, i) => <Cell key={i} fill={(e.ebitda ?? 0) >= 0 ? P.ebitdaPos : P.ebitdaNeg} />)}
+                  </Bar>
+                  <Bar dataKey="net_income" name="Net Income" radius={[3,3,0,0]} isAnimationActive={false}>
+                    {chartData.map((e, i) => <Cell key={i} fill={(e.net_income ?? 0) >= 0 ? P.netIncome : P.ebitdaNeg} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Section 4: Metrics table ── */}
+      <div className="export-section" style={secPad}>
+        <div style={panelStyle({ padding: "16px 0 8px" })}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 16px 12px" }}>
+            <p style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", color: muted, margin: 0 }}>Extracted Metrics by Period</p>
+            <div style={{ flex: 1, height: 1, background: `linear-gradient(to right, ${brd}, transparent)` }} />
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${brd}` }}>
+                {["Period", "Revenue", "Gross Margin", "EBITDA", "Net Income", "Cash", "Burn/mo", "Runway", "CAC", "LTV", "LTV/CAC"].map((h, i) => (
+                  <th key={h} style={{ padding: "0 12px 8px", textAlign: i === 0 ? "left" : "right", fontSize: 8, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: muted }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.metrics.map((m, i) => (
+                <tr key={i} style={{ borderBottom: `1px solid ${brd}` }}>
+                  <td style={{ padding: "6px 12px", color: txt, fontWeight: 300 }}>{m.period}{m.is_projected && <span style={{ marginLeft: 6, fontSize: 8, padding: "1px 4px", borderRadius: 3, backgroundColor: "rgba(245,158,11,0.1)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.2)" }}>proj</span>}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.revenue)}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtPctE(m.gross_margin_pct)}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", color: m.ebitda == null ? dim : m.ebitda >= 0 ? "#6ee7b7" : "#fca5a5", fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.ebitda)}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", color: m.net_income == null ? dim : m.net_income >= 0 ? "#6ee7b7" : "#fca5a5", fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.net_income)}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.cash_balance)}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.monthly_burn_rate)}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtMoE(m.implied_runway_months)}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.cac)}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.ltv)}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtRatioE(m.ltv_to_cac_ratio)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
 // ── PDF export ───────────────────────────────────────────────────────────────
 async function exportPdf(
-  tearSheetEl: HTMLElement,
+  exportEl: HTMLElement,
   companyName: string,
-  onProgress: (s: string) => void
+  onProgress: (s: string) => void,
+  bgColor: string
 ) {
   onProgress("Rendering layout…");
-  const html2canvas = (await import("html2canvas")).default;
+  await new Promise<void>((r) => setTimeout(r, 800));
+
+  const { toPng } = await import("html-to-image");
   const jsPDF = (await import("jspdf")).default;
 
-  onProgress("Capturing screenshot…");
-  console.log("[export] tear-sheet element:", tearSheetEl);
-  console.log("[export] dimensions:", tearSheetEl.scrollWidth, "×", tearSheetEl.scrollHeight);
-  const canvas = await html2canvas(tearSheetEl, {
-    scale: 2,
-    useCORS: true,
-    allowTaint: true,
-    backgroundColor: "#09090b",
-    logging: true,
-    width: tearSheetEl.scrollWidth,
-    height: tearSheetEl.scrollHeight,
-    windowWidth: tearSheetEl.scrollWidth,
-    windowHeight: tearSheetEl.scrollHeight,
-    x: 0,
-    y: 0,
-    // Strip every stylesheet from the cloned document before parsing begins.
-    // Tailwind v4 outputs oklch()/lab() colors which html2canvas cannot parse,
-    // causing a hard crash. The TearSheet uses only inline styles, so removing
-    // external CSS has zero effect on the rendered output.
-    onclone: (clonedDoc: Document) => {
-      clonedDoc
-        .querySelectorAll('style, link[rel="stylesheet"]')
-        .forEach((el) => el.remove());
-    },
-  });
-  console.log("[export] canvas:", canvas.width, "×", canvas.height);
+  const sections = Array.from(exportEl.querySelectorAll<HTMLElement>(".export-section"));
+  if (sections.length === 0) throw new Error("No .export-section elements found");
 
-  onProgress("Building PDF…");
-  const imgData = canvas.toDataURL("image/png");
-  const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-  const pdfW = pdf.internal.pageSize.getWidth();
-  const pdfH = pdf.internal.pageSize.getHeight();
+  const pdf = new jsPDF("l", "mm", "a4");
+  const pageWidth = 297;
+  const pageHeight = 210;
+  const margin = 10;
+  let currentY = margin;
+  let firstSection = true;
 
-  // Scale canvas to fill the page width; paginate vertically if needed
-  const ratio = canvas.height / canvas.width;
-  const imgH = pdfW * ratio;
-  let yOffset = 0;
-  let remainingH = imgH;
+  for (let i = 0; i < sections.length; i++) {
+    const section = sections[i];
+    onProgress(`Capturing section ${i + 1} of ${sections.length}…`);
+    const imgData = await toPng(section, { backgroundColor: bgColor, pixelRatio: 2 });
+    const imgProps = pdf.getImageProperties(imgData);
+    const scaledHeight = (imgProps.height * (pageWidth - margin * 2)) / imgProps.width;
 
-  while (remainingH > 0) {
-    if (yOffset > 0) pdf.addPage();
-    pdf.addImage(imgData, "PNG", 0, -yOffset, pdfW, imgH);
-    yOffset += pdfH;
-    remainingH -= pdfH;
+    if (!firstSection && currentY + scaledHeight > pageHeight - margin && currentY !== margin) {
+      pdf.addPage();
+      currentY = margin;
+    }
+    pdf.addImage(imgData, "PNG", margin, currentY, pageWidth - margin * 2, scaledHeight);
+    currentY += scaledHeight + 5;
+    firstSection = false;
   }
 
   onProgress("Downloading…");
-  const slug = companyName.toLowerCase().replace(/\s+/g, "-");
-  pdf.save(`${slug}-tear-sheet.pdf`);
+  pdf.save(`${companyName.toLowerCase().replace(/\s+/g, "-")}-tear-sheet.pdf`);
 }
 
 // ── Export modal ─────────────────────────────────────────────────────────────
@@ -698,18 +895,19 @@ interface ExportModalProps {
   data: ExtractedFinancials;
   fileName: string;
   tearSheetRef: React.RefObject<HTMLDivElement | null>;
+  exportTheme: "dark" | "light";
+  onExportThemeChange: (t: "dark" | "light") => void;
   onClose: () => void;
 }
 
-function ExportModal({ data, fileName, tearSheetRef, onClose }: ExportModalProps) {
+function ExportModal({ data, fileName, tearSheetRef, exportTheme, onExportThemeChange, onClose }: ExportModalProps) {
   const [status, setStatus] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  // Close on Escape
+  const bgColor = exportTheme === "dark" ? "#09090b" : "#FAF9F6";
+
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
@@ -717,24 +915,14 @@ function ExportModal({ data, fileName, tearSheetRef, onClose }: ExportModalProps
   async function handleDownload() {
     if (!tearSheetRef.current) return;
     try {
-      await exportPdf(tearSheetRef.current, data.company_name, setStatus);
+      await exportPdf(tearSheetRef.current, data.company_name, setStatus, bgColor);
       setDone(true);
       setStatus(null);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error("[export] PDF generation failed:", err);
-      console.error("[export] Error message:", msg);
-      console.error("[export] tearSheetRef.current:", tearSheetRef.current);
       setStatus(`Export failed: ${msg}`);
     }
   }
-
-  const latest = [...data.metrics].reverse().find((m) => !m.is_projected) ?? data.metrics[data.metrics.length - 1];
-  const cur = data.reporting_currency;
-  const fmtC = (v: number | null | undefined) =>
-    v == null
-      ? "—"
-      : new Intl.NumberFormat("en-US", { style: "currency", currency: cur, notation: "compact", maximumFractionDigits: 1 }).format(v);
 
   return (
     <AnimatePresence>
@@ -752,38 +940,55 @@ function ExportModal({ data, fileName, tearSheetRef, onClose }: ExportModalProps
           exit={{ opacity: 0, scale: 0.96, y: 10, transition: { duration: 0.15 } }}
           className="relative w-full max-w-5xl rounded-2xl border border-zinc-200 dark:border-zinc-800/60 bg-white dark:bg-zinc-950 shadow-2xl overflow-y-auto max-h-[95vh]"
         >
-          {/* Close */}
-          <button
-            onClick={onClose}
-            className="absolute right-4 top-4 rounded-lg p-1.5 text-zinc-600 transition-colors hover:text-zinc-300"
-          >
+          <button onClick={onClose} className="absolute right-4 top-4 rounded-lg p-1.5 text-zinc-500 transition-colors hover:text-zinc-800 dark:hover:text-zinc-200">
             <X className="size-4" />
           </button>
 
           <div className="p-6">
-            {/* Title */}
-            <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-600 mb-1">Export</p>
-            <h3 className="text-lg font-light text-zinc-900 dark:text-white tracking-tight">
-              {fileName || "Financial Tear-Sheet"}
-            </h3>
-            <p className="mt-1 text-[11px] text-zinc-500">
-              Landscape A4 PDF · 1200px desktop layout · Dark theme
-            </p>
+            {/* Header row: title + export theme toggle */}
+            <div className="flex items-start justify-between gap-4 pr-8">
+              <div>
+                <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-500 mb-1">Export</p>
+                <h3 className="text-lg font-light text-zinc-900 dark:text-white tracking-tight">
+                  {fileName || "Financial Tear-Sheet"}
+                </h3>
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  Landscape A4 · {exportTheme === "dark" ? "Dark" : "Light"} theme
+                </p>
+              </div>
 
-            <div className="mt-5 h-px bg-zinc-200 dark:bg-zinc-800/60" />
-
-            {/* Scrollable live preview — zoom shrinks content AND affects layout,
-                so overflow-y-auto gives true vertical scrolling at the scaled size */}
-            <div
-              className="mt-5 rounded-xl border border-zinc-200 dark:border-zinc-800/50 overflow-y-auto overflow-x-hidden"
-              style={{ maxHeight: "70vh", background: "#09090b" }}
-            >
-              <div style={{ zoom: 0.72, pointerEvents: "none", userSelect: "none" }}>
-                <TearSheetPreview data={data} fileName={fileName} />
+              {/* Export theme toggle */}
+              <div className="flex shrink-0 items-center gap-2 rounded-xl border border-zinc-200 dark:border-zinc-800/60 bg-zinc-100 dark:bg-zinc-900/60 p-[3px]">
+                {(["dark", "light"] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => onExportThemeChange(t)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-[8px] px-3 py-1.5 text-[10px] uppercase tracking-widest transition-colors duration-200",
+                      exportTheme === t
+                        ? "bg-white dark:bg-zinc-700/60 text-zinc-900 dark:text-zinc-100 shadow-sm"
+                        : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+                    )}
+                  >
+                    {t === "dark" ? <Moon className="size-3" /> : <Sun className="size-3" />}
+                    {t}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Status / done message */}
+            <div className="mt-5 h-px bg-zinc-200 dark:bg-zinc-800/60" />
+
+            {/* Live preview */}
+            <div
+              className="mt-5 rounded-xl border border-zinc-200 dark:border-zinc-800/50 overflow-y-auto overflow-x-hidden"
+              style={{ maxHeight: "60vh", backgroundColor: bgColor }}
+            >
+              <div style={{ zoom: 0.64, pointerEvents: "none", userSelect: "none" }}>
+                <ExportContent data={data} theme={exportTheme} />
+              </div>
+            </div>
+
             {(status || done) && (
               <div className={cn(
                 "mt-4 flex items-center gap-2 rounded-xl px-4 py-2.5 text-[11px]",
@@ -794,7 +999,6 @@ function ExportModal({ data, fileName, tearSheetRef, onClose }: ExportModalProps
               </div>
             )}
 
-            {/* Actions */}
             <div className="mt-5 flex gap-3">
               <button
                 onClick={onClose}
@@ -827,9 +1031,16 @@ function ExportModal({ data, fileName, tearSheetRef, onClose }: ExportModalProps
 export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFinancials; fileName?: string }) {
   const cur = data.reporting_currency;
   const CT = useChartTheme();
+  const { resolvedTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<"metrics" | "valuation">("metrics");
   const [exportOpen, setExportOpen] = useState(false);
+  const [exportTheme, setExportTheme] = useState<"dark" | "light">("dark");
   const tearSheetRef = useRef<HTMLDivElement>(null);
+
+  // Sync exportTheme default whenever modal opens
+  useEffect(() => {
+    if (exportOpen) setExportTheme(resolvedTheme === "light" ? "light" : "dark");
+  }, [exportOpen, resolvedTheme]);
 
   const latest: FinancialMetrics | undefined =
     [...data.metrics].reverse().find((m) => !m.is_projected) ??
@@ -1418,8 +1629,14 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
         </AnimatePresence>
       </motion.div>
 
-      {/* Hidden tear-sheet captured by html2canvas — never visible to user */}
-      <TearSheet data={data} fileName={fileName} innerRef={tearSheetRef} />
+      {/* Hidden export container — in-viewport but invisible so browser fully paints it */}
+      <div
+        ref={tearSheetRef}
+        className="absolute top-0 left-0 opacity-0 -z-50 pointer-events-none"
+        style={{ width: 1400, height: "max-content" }}
+      >
+        <ExportContent data={data} theme={exportTheme} />
+      </div>
 
       {/* Export modal */}
       {exportOpen && (
@@ -1427,6 +1644,8 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
           data={data}
           fileName={fileName}
           tearSheetRef={tearSheetRef}
+          exportTheme={exportTheme}
+          onExportThemeChange={setExportTheme}
           onClose={() => setExportOpen(false)}
         />
       )}
