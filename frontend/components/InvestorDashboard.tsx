@@ -333,9 +333,10 @@ interface ValuationViewProps {
   latest: FinancialMetrics | undefined;
   cur: string;
   currencyFmt: (v: number) => string;
+  disableAnimation?: boolean;
 }
 
-function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
+function ValuationView({ data, latest, cur, currencyFmt, disableAnimation = false }: ValuationViewProps) {
   const [scenario, setScenario] = useState<"base" | "stress">("base");
 
   // ── DCF assumption constants ──────────���────────────────────────────────────
@@ -447,9 +448,9 @@ function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
                     cursor={{ fill: "rgba(255,255,255,0.03)" }}
                   />
                   {/* Invisible spacer floats the bars */}
-                  <Bar dataKey="spacer" stackId="wf" fill="transparent" legendType="none" />
+                  <Bar dataKey="spacer" stackId="wf" fill="transparent" legendType="none" isAnimationActive={!disableAnimation} />
                   {/* Colored value bars */}
-                  <Bar dataKey="bar" stackId="wf" name="Value" radius={[3, 3, 0, 0]}>
+                  <Bar dataKey="bar" stackId="wf" name="Value" radius={[3, 3, 0, 0]} isAnimationActive={!disableAnimation}>
                     {waterfallData.map((entry, i) => (
                       <Cell
                         key={i}
@@ -620,42 +621,59 @@ function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
 }
 
 // ── PDF export ───────────────────────────────────────────────────────────────
-// Uses html-to-image (SVGForeignObject renderer) instead of html2canvas.
-// The browser renders the DOM natively into the SVG, so oklch / oklab /
-// color-mix and every other modern CSS feature work without any conversion.
+// Renders each .export-section individually with html-to-image, then
+// places them into a landscape A4 PDF with smart pagination — a section that
+// doesn't fit on the remaining space of the current page is bumped cleanly
+// to a fresh page, so charts are never sliced in half.
 async function exportPdf(
   exportEl: HTMLElement,
   companyName: string,
   onProgress: (s: string) => void
 ) {
   onProgress("Rendering layout…");
+
+  // Wait for all Recharts / framer-motion animations to settle before capture.
+  await new Promise<void>((r) => setTimeout(r, 800));
+
   const { toPng } = await import("html-to-image");
   const jsPDF = (await import("jspdf")).default;
 
-  onProgress("Capturing screenshot…");
-  const dataUrl = await toPng(exportEl, {
-    backgroundColor: "#09090b",
-    pixelRatio: 2,
-    width: exportEl.scrollWidth,
-    height: exportEl.scrollHeight,
-  });
+  const sections = Array.from(
+    exportEl.querySelectorAll<HTMLElement>(".export-section")
+  );
+  if (sections.length === 0) throw new Error("No .export-section elements found");
 
-  onProgress("Building PDF…");
   const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pdfW = pdf.internal.pageSize.getWidth();
   const pdfH = pdf.internal.pageSize.getHeight();
+  const MARGIN = 8;
+  const usableW = pdfW - MARGIN * 2;
+  let currentY = MARGIN;
+  let firstSection = true;
 
-  // Derive aspect ratio from the element dimensions (pixelRatio doesn't affect it)
-  const ratio = exportEl.scrollHeight / exportEl.scrollWidth;
-  const imgH = pdfW * ratio;
-  let yOffset = 0;
-  let remainingH = imgH;
+  for (let i = 0; i < sections.length; i++) {
+    const section = sections[i];
+    onProgress(`Capturing section ${i + 1} of ${sections.length}…`);
 
-  while (remainingH > 0) {
-    if (yOffset > 0) pdf.addPage();
-    pdf.addImage(dataUrl, "PNG", 0, -yOffset, pdfW, imgH);
-    yOffset += pdfH;
-    remainingH -= pdfH;
+    const dataUrl = await toPng(section, {
+      backgroundColor: "#09090b",
+      pixelRatio: 2,
+    });
+
+    // Use offsetWidth/Height so padding and borders are included
+    const sectionRatio = section.offsetHeight / (section.offsetWidth || 1);
+    const imgW = usableW;
+    const imgH = imgW * sectionRatio;
+
+    // Bump to a new page if this section won't fit
+    if (!firstSection && currentY + imgH > pdfH - MARGIN) {
+      pdf.addPage();
+      currentY = MARGIN;
+    }
+
+    pdf.addImage(dataUrl, "PNG", MARGIN, currentY, imgW, imgH);
+    currentY += imgH + 3; // 3 mm gap between sections
+    firstSection = false;
   }
 
   onProgress("Downloading…");
@@ -767,54 +785,55 @@ function ExportContent({ data, fileName }: { data: ExtractedFinancials; fileName
         } as React.CSSProperties
       }
     >
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="mb-5 pb-5 border-b border-zinc-800">
-        <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-600 mb-1">
-          Asymmetrica Valuations · {fileName || "Financial Analysis"}
-        </p>
-        <h1 className="text-3xl font-light tracking-tight text-white mb-1">
-          {data.company_name}
-        </h1>
-        <p className="text-[10px] uppercase tracking-[0.16em] text-zinc-400">
-          {data.reporting_period_type} · {cur} ·{" "}
-          {Math.round(data.confidence_score * 100)}% confidence
-        </p>
-        <p className="text-[9px] text-zinc-600 mt-1">{today}</p>
+      {/* ── Section 1: Header + KPI grid ─────────────────────────────────── */}
+      <div className="export-section mb-3 pb-3">
+        {/* Header */}
+        <div className="mb-5 pb-4 border-b border-zinc-800">
+          <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-600 mb-1">
+            Asymmetrica Valuations · {fileName || "Financial Analysis"}
+          </p>
+          <h1 className="text-3xl font-light tracking-tight text-white mb-1">
+            {data.company_name}
+          </h1>
+          <p className="text-[10px] uppercase tracking-[0.16em] text-zinc-400">
+            {data.reporting_period_type} · {cur} ·{" "}
+            {Math.round(data.confidence_score * 100)}% confidence
+          </p>
+          <p className="text-[9px] text-zinc-600 mt-1">{today}</p>
+        </div>
+
+        {/* Section label */}
+        <div className="flex items-center gap-3 mb-4">
+          <span className="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600 whitespace-nowrap">
+            Operating Metrics
+          </span>
+          <div className="flex-1 h-px bg-zinc-800" />
+        </div>
+
+        {/* KPI grid */}
+        <div className="grid grid-cols-4 gap-3">
+          <KpiCard label="Revenue" rawValue={latest?.revenue} formatFn={currencyFmt} sub={latest?.period} />
+          <KpiCard
+            label="EBITDA"
+            rawValue={latest?.ebitda}
+            formatFn={currencyFmt}
+            sub={latest?.period}
+            valueClass={latest?.ebitda == null ? "" : latest.ebitda >= 0 ? "text-emerald-300" : "text-red-300"}
+          />
+          <KpiCard label="Cash Balance" rawValue={latest?.cash_balance} formatFn={currencyFmt} sub={latest?.period} />
+          <KpiCard
+            label="Runway"
+            rawValue={runway}
+            formatFn={monthsFmt}
+            sub="implied"
+            icon={runwayIcon(runway)}
+            valueClass={runwayClass(runway)}
+          />
+        </div>
       </div>
 
-      {/* ── Section: Operating Metrics ────────────────────────────────────── */}
-      <div className="flex items-center gap-3 mb-5">
-        <span className="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600 whitespace-nowrap">
-          Operating Metrics
-        </span>
-        <div className="flex-1 h-px bg-zinc-800" />
-      </div>
-
-      {/* KPI grid */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
-        <KpiCard label="Revenue" rawValue={latest?.revenue} formatFn={currencyFmt} sub={latest?.period} />
-        <KpiCard
-          label="EBITDA"
-          rawValue={latest?.ebitda}
-          formatFn={currencyFmt}
-          sub={latest?.period}
-          valueClass={latest?.ebitda == null ? "" : latest.ebitda >= 0 ? "text-emerald-300" : "text-red-300"}
-        />
-        <KpiCard label="Cash Balance" rawValue={latest?.cash_balance} formatFn={currencyFmt} sub={latest?.period} />
-        <KpiCard
-          label="Runway"
-          rawValue={runway}
-          formatFn={monthsFmt}
-          sub="implied"
-          icon={runwayIcon(runway)}
-          valueClass={runwayClass(runway)}
-        />
-      </div>
-
-      {/* Charts 2×2 */}
-      <div className="grid grid-cols-2 gap-6 mb-6">
-
-        {/* Chart 1 — Revenue vs EBITDA */}
+      {/* ── Section 2: Charts row 1 (Revenue vs EBITDA + Cash Balance) ────── */}
+      <div className="export-section grid grid-cols-2 gap-6 mb-3">
         <GlassPanel>
           <PanelHeader title="Revenue vs EBITDA" sub={currencyUnit} />
           <div className="h-[230px] px-2 pt-4 pb-2">
@@ -828,8 +847,8 @@ function ExportContent({ data, fileName }: { data: ExtractedFinancials; fileName
                   formatter={(v) => fmtCurrency(v as number, cur)} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
                 <Legend wrapperStyle={{ fontSize: 10, color: "#d4d4d8", paddingTop: 8 }} iconType="square" iconSize={7} />
                 <ReferenceLine y={0} stroke={P.zero} />
-                <Bar dataKey="revenue" name="Revenue" radius={[3, 3, 0, 0]} fill={P.revenue} />
-                <Bar dataKey="ebitda" name="EBITDA" fill={P.ebitdaPos} radius={[3, 3, 0, 0]}>
+                <Bar isAnimationActive={false} dataKey="revenue" name="Revenue" radius={[3, 3, 0, 0]} fill={P.revenue} />
+                <Bar isAnimationActive={false} dataKey="ebitda" name="EBITDA" fill={P.ebitdaPos} radius={[3, 3, 0, 0]}>
                   {chartData.map((entry, i) => (
                     <Cell key={i} fill={(entry.ebitda ?? 0) >= 0 ? P.ebitdaPos : P.ebitdaNeg} />
                   ))}
@@ -839,7 +858,6 @@ function ExportContent({ data, fileName }: { data: ExtractedFinancials; fileName
           </div>
         </GlassPanel>
 
-        {/* Chart 2 — Cash Balance */}
         <GlassPanel>
           <PanelHeader title="Cash Balance" sub={currencyUnit} />
           <div className="h-[230px] px-2 pt-4 pb-2">
@@ -851,14 +869,16 @@ function ExportContent({ data, fileName }: { data: ExtractedFinancials; fileName
                   tickFormatter={(v) => compactNum(v).replace(/[A-Za-z]+$/, "")} width={48} />
                 <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: "#e4e4e7" }} labelStyle={{ color: "#a1a1aa" }}
                   formatter={(v) => fmtCurrency(v as number, cur)} cursor={{ stroke: "rgba(255,255,255,0.06)" }} />
-                <Line type="monotone" dataKey="cash" name="Cash" stroke={P.cash} strokeWidth={1.5}
+                <Line isAnimationActive={false} type="monotone" dataKey="cash" name="Cash" stroke={P.cash} strokeWidth={1.5}
                   dot={{ r: 2.5, fill: P.cash, strokeWidth: 0 }} activeDot={{ r: 4, strokeWidth: 0 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </GlassPanel>
+      </div>
 
-        {/* Chart 3 — Margin Evolution */}
+      {/* ── Section 3: Charts row 2 (Margin Evolution + Profitability) ──────── */}
+      <div className="export-section grid grid-cols-2 gap-6 mb-3">
         <GlassPanel>
           <PanelHeader title="Margin Evolution" sub="in percent" />
           <div className="h-[230px] px-2 pt-4 pb-2">
@@ -872,16 +892,15 @@ function ExportContent({ data, fileName }: { data: ExtractedFinancials; fileName
                   formatter={(v) => `${(v as number).toFixed(1)}%`} cursor={{ stroke: "rgba(255,255,255,0.06)" }} />
                 <Legend wrapperStyle={{ fontSize: 10, color: "#d4d4d8", paddingTop: 8 }} iconType="square" iconSize={7} />
                 <ReferenceLine y={0} stroke={P.zero} />
-                <Line type="monotone" dataKey="gross_margin_pct" name="Gross Margin" stroke={P.grossMargin} strokeWidth={1.5}
+                <Line isAnimationActive={false} type="monotone" dataKey="gross_margin_pct" name="Gross Margin" stroke={P.grossMargin} strokeWidth={1.5}
                   dot={{ r: 2.5, fill: P.grossMargin, strokeWidth: 0 }} activeDot={{ r: 4, strokeWidth: 0 }} connectNulls />
-                <Line type="monotone" dataKey="ebitda_margin_pct" name="EBITDA Margin" stroke={P.ebitdaMargin} strokeWidth={1.5}
+                <Line isAnimationActive={false} type="monotone" dataKey="ebitda_margin_pct" name="EBITDA Margin" stroke={P.ebitdaMargin} strokeWidth={1.5}
                   strokeDasharray="4 3" dot={{ r: 2.5, fill: P.ebitdaMargin, strokeWidth: 0 }} activeDot={{ r: 4, strokeWidth: 0 }} connectNulls />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </GlassPanel>
 
-        {/* Chart 4 — Profitability Conversion */}
         <GlassPanel>
           <PanelHeader title="Profitability Conversion" sub={currencyUnit} />
           <div className="h-[230px] px-2 pt-4 pb-2">
@@ -895,12 +914,12 @@ function ExportContent({ data, fileName }: { data: ExtractedFinancials; fileName
                   formatter={(v) => fmtCurrency(v as number, cur)} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
                 <Legend wrapperStyle={{ fontSize: 10, color: "#d4d4d8", paddingTop: 8 }} iconType="square" iconSize={7} />
                 <ReferenceLine y={0} stroke={P.zero} />
-                <Bar dataKey="ebitda" name="EBITDA" fill={P.ebitdaPos} radius={[3, 3, 0, 0]}>
+                <Bar isAnimationActive={false} dataKey="ebitda" name="EBITDA" fill={P.ebitdaPos} radius={[3, 3, 0, 0]}>
                   {chartData.map((entry, i) => (
                     <Cell key={i} fill={(entry.ebitda ?? 0) >= 0 ? P.ebitdaPos : P.ebitdaNeg} />
                   ))}
                 </Bar>
-                <Bar dataKey="net_income" name="Net Income" fill={P.netIncome} radius={[3, 3, 0, 0]}>
+                <Bar isAnimationActive={false} dataKey="net_income" name="Net Income" fill={P.netIncome} radius={[3, 3, 0, 0]}>
                   {chartData.map((entry, i) => (
                     <Cell key={i} fill={(entry.net_income ?? 0) >= 0 ? P.netIncome : P.ebitdaNeg} />
                   ))}
@@ -911,62 +930,62 @@ function ExportContent({ data, fileName }: { data: ExtractedFinancials; fileName
         </GlassPanel>
       </div>
 
-      {/* Metrics table */}
-      <GlassPanel className="mb-6">
-        <PanelHeader title="Extracted Metrics by Period" />
-        <div className="overflow-x-auto px-1 pb-2 pt-4">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-zinc-800/40 hover:bg-transparent">
-                {["Period", "Revenue", "Gross Margin", "EBITDA", "Net Income", "Cash", "Burn / mo", "Runway", "CAC", "LTV", "LTV/CAC"].map((h, i) => (
-                  <TableHead key={h} className={cn("text-[10px] uppercase tracking-widest text-zinc-500", i > 0 && "text-right")}>{h}</TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.metrics.map((m, i) => (
-                <TableRow key={i} className="border-zinc-800/30">
-                  <TableCell className="whitespace-nowrap text-sm font-light text-zinc-300">
-                    {m.period}
-                    {m.is_projected && (
-                      <span className="ml-2 rounded px-1 py-0.5 text-[9px] uppercase tracking-wider bg-amber-500/10 text-amber-400/80 border border-amber-500/15">proj</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtCurrency(m.revenue, cur)}</TableCell>
-                  <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtPct(m.gross_margin_pct)}</TableCell>
-                  <TableCell className={cn("text-right text-sm tabular-nums font-light", m.ebitda == null ? "text-zinc-600" : m.ebitda >= 0 ? "text-emerald-300/80" : "text-red-300/80")}>
-                    {fmtCurrency(m.ebitda, cur)}
-                  </TableCell>
-                  <TableCell className={cn("text-right text-sm tabular-nums font-light", m.net_income == null ? "text-zinc-600" : m.net_income >= 0 ? "text-emerald-300/80" : "text-red-300/80")}>
-                    {fmtCurrency(m.net_income, cur)}
-                  </TableCell>
-                  <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtCurrency(m.cash_balance, cur)}</TableCell>
-                  <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtCurrency(m.monthly_burn_rate, cur)}</TableCell>
-                  <TableCell className={cn("text-right text-sm tabular-nums font-light", runwayClass(m.implied_runway_months))}>
-                    {fmtMonths(m.implied_runway_months)}
-                  </TableCell>
-                  <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtCurrency(m.cac, cur)}</TableCell>
-                  <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtCurrency(m.ltv, cur)}</TableCell>
-                  <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtRatio(m.ltv_to_cac_ratio)}</TableCell>
+      {/* ── Section 4: Metrics table ────────────────────────────────────────── */}
+      <div className="export-section mb-3">
+        <GlassPanel>
+          <PanelHeader title="Extracted Metrics by Period" />
+          <div className="overflow-x-auto px-1 pb-2 pt-4">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-zinc-800/40 hover:bg-transparent">
+                  {["Period", "Revenue", "Gross Margin", "EBITDA", "Net Income", "Cash", "Burn / mo", "Runway", "CAC", "LTV", "LTV/CAC"].map((h, i) => (
+                    <TableHead key={h} className={cn("text-[10px] uppercase tracking-widest text-zinc-500", i > 0 && "text-right")}>{h}</TableHead>
+                  ))}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </GlassPanel>
-
-      {/* ── Page break between sections ───────────────────────────────────── */}
-      <div style={{ pageBreakBefore: "always", breakBefore: "page" }} />
-
-      {/* ── Section: Fair Market Value Analysis ──────────────────────────── */}
-      <div className="flex items-center gap-3 mb-5 pt-8">
-        <span className="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600 whitespace-nowrap">
-          Fair Market Value Analysis
-        </span>
-        <div className="flex-1 h-px bg-zinc-800" />
+              </TableHeader>
+              <TableBody>
+                {data.metrics.map((m, i) => (
+                  <TableRow key={i} className="border-zinc-800/30">
+                    <TableCell className="whitespace-nowrap text-sm font-light text-zinc-300">
+                      {m.period}
+                      {m.is_projected && (
+                        <span className="ml-2 rounded px-1 py-0.5 text-[9px] uppercase tracking-wider bg-amber-500/10 text-amber-400/80 border border-amber-500/15">proj</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtCurrency(m.revenue, cur)}</TableCell>
+                    <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtPct(m.gross_margin_pct)}</TableCell>
+                    <TableCell className={cn("text-right text-sm tabular-nums font-light", m.ebitda == null ? "text-zinc-600" : m.ebitda >= 0 ? "text-emerald-300/80" : "text-red-300/80")}>
+                      {fmtCurrency(m.ebitda, cur)}
+                    </TableCell>
+                    <TableCell className={cn("text-right text-sm tabular-nums font-light", m.net_income == null ? "text-zinc-600" : m.net_income >= 0 ? "text-emerald-300/80" : "text-red-300/80")}>
+                      {fmtCurrency(m.net_income, cur)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtCurrency(m.cash_balance, cur)}</TableCell>
+                    <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtCurrency(m.monthly_burn_rate, cur)}</TableCell>
+                    <TableCell className={cn("text-right text-sm tabular-nums font-light", runwayClass(m.implied_runway_months))}>
+                      {fmtMonths(m.implied_runway_months)}
+                    </TableCell>
+                    <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtCurrency(m.cac, cur)}</TableCell>
+                    <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtCurrency(m.ltv, cur)}</TableCell>
+                    <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtRatio(m.ltv_to_cac_ratio)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </GlassPanel>
       </div>
 
-      <ValuationView data={data} latest={latest} cur={cur} currencyFmt={currencyFmt} />
+      {/* ── Section 5: Fair Market Value Analysis ───────────────────────────── */}
+      <div className="export-section">
+        <div className="flex items-center gap-3 mb-5">
+          <span className="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600 whitespace-nowrap">
+            Fair Market Value Analysis
+          </span>
+          <div className="flex-1 h-px bg-zinc-800" />
+        </div>
+        <ValuationView data={data} latest={latest} cur={cur} currencyFmt={currencyFmt} disableAnimation />
+      </div>
     </div>
   );
 }
@@ -1688,16 +1707,11 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
         </AnimatePresence>
       </motion.div>
 
-      {/* Hidden export container — pushed off-screen, captured by html-to-image */}
+      {/* Hidden export container — in DOM but invisible, fully painted by browser */}
       <div
         ref={tearSheetRef}
-        style={{
-          position: "absolute",
-          top: -9999,
-          left: -9999,
-          zIndex: -1,
-          width: 1400,
-        }}
+        className="absolute top-0 left-0 opacity-0 -z-50 pointer-events-none"
+        style={{ width: 1400 }}
       >
         <ExportContent data={data} fileName={fileName} />
       </div>
