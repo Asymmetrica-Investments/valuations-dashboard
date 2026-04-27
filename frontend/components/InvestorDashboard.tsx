@@ -871,10 +871,11 @@ async function exportPdf(
   const pdf = new jsPDF("l", "mm", "a4");
   const pageWidth = 297;
   const pageHeight = 210;
-  let currentY = 0;
+  const margin = 12;
+  let currentY = margin;
   let firstSection = true;
 
-  // Paint the first page background
+  // Paint the first page background before placing any images
   pdf.setFillColor(bgR, bgG, bgB);
   pdf.rect(0, 0, pageWidth, pageHeight, "F");
 
@@ -883,16 +884,16 @@ async function exportPdf(
     onProgress(`Capturing section ${i + 1} of ${sections.length}…`);
     const imgData = await toPng(section, { backgroundColor: bgColor, pixelRatio: 2 });
     const imgProps = pdf.getImageProperties(imgData);
-    const scaledHeight = (imgProps.height * pageWidth) / imgProps.width;
+    const scaledHeight = (imgProps.height * (pageWidth - margin * 2)) / imgProps.width;
 
-    if (!firstSection && currentY + scaledHeight > pageHeight && currentY !== 0) {
+    if (!firstSection && currentY + scaledHeight > pageHeight - margin && currentY !== margin) {
       pdf.addPage();
-      currentY = 0;
+      currentY = margin;
       // Paint new page background before placing image
       pdf.setFillColor(bgR, bgG, bgB);
       pdf.rect(0, 0, pageWidth, pageHeight, "F");
     }
-    pdf.addImage(imgData, "PNG", 0, currentY, pageWidth, scaledHeight);
+    pdf.addImage(imgData, "PNG", margin, currentY, pageWidth - margin * 2, scaledHeight);
     currentY += scaledHeight;
     firstSection = false;
   }
