@@ -619,10 +619,10 @@ function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
   );
 }
 
-// ── Color resolver: canvas converts oklch/lab → rgb for html2canvas ──────────
-// html2canvas v1.x cannot parse oklch()/lab() color functions. This uses the
-// browser's own canvas fill parser to resolve any modern color to rgb/rgba.
-function resolveOklch(value: string): string {
+// ── Color resolver: canvas converts any modern CSS color → rgb ───────────────
+// Uses the browser's own canvas fill parser so oklch/oklab/lab/lch/color-mix
+// are all handled correctly, including alpha channels.
+function resolveColor(value: string): string {
   try {
     const cvs = document.createElement("canvas");
     cvs.width = cvs.height = 1;
@@ -639,13 +639,31 @@ function resolveOklch(value: string): string {
   }
 }
 
-// ── Pre-fetch all stylesheets, convert oklch/lab → rgb, return as one string ──
+// ── Convert all modern color functions in a CSS string to rgb() ───────────────
+// Three-pass approach to handle every form Tailwind v4 / shadcn can emit:
+//
+//   Pass 1 — ok-prefixed functions: oklab(...) oklch(...)
+//            Order matters: oklab before lab so we never partially match inside
+//            `oklab(...)` leaving an orphaned `ok` prefix.
+//
+//   Pass 2 — legacy functions that html2canvas also can't parse: lab(...) lch(...)
+//
+//   Pass 3 — color-mix(in oklab/oklch, ...) used by Tailwind v4 for opacity
+//            variants like bg-zinc-900/40. The nested-paren pattern
+//            (?:[^)(]|\([^)]*\))* allows one level of nesting (rgb(...) inside).
+function convertModernColors(css: string): string {
+  return css
+    .replace(/ok(?:lch|lab)\([^)]+\)/g, resolveColor)
+    .replace(/(?:lch|lab)\([^)]+\)/g, resolveColor)
+    .replace(/color-mix\(\s*in\s+ok(?:lch|lab)(?:[^)(]|\([^)]*\))*\)/g, resolveColor);
+}
+
+// ── Pre-fetch all stylesheets, strip modern colors, return as one CSS string ──
 async function prepareStyles(): Promise<string> {
-  const re = /oklch\([^)]+\)|lab\([^)]+\)/g;
   const parts: string[] = [];
 
   for (const el of Array.from(document.querySelectorAll("style"))) {
-    parts.push((el.textContent ?? "").replace(re, resolveOklch));
+    parts.push(convertModernColors(el.textContent ?? ""));
   }
 
   await Promise.all(
@@ -655,7 +673,7 @@ async function prepareStyles(): Promise<string> {
       try {
         const res = await fetch(link.href);
         const text = await res.text();
-        parts.push(text.replace(re, resolveOklch));
+        parts.push(convertModernColors(text));
       } catch {
         /* skip unreachable sheets */
       }
@@ -663,6 +681,44 @@ async function prepareStyles(): Promise<string> {
   );
 
   return parts.join("\n");
+}
+
+// ── DOM-walker failsafe ───────────────────────────────────────────────────────
+// Walks every HTML element inside the capture container and replaces any
+// computed color property that still contains a modern color function with an
+// inline rgb() override. This catches values injected by third-party libraries
+// after stylesheet processing (framer-motion, radix, etc.).
+// SVG elements are intentionally skipped — chart colors use hardcoded hex.
+function sanitizeExportColors(root: Element): void {
+  const PROPS = [
+    "color",
+    "background-color",
+    "border-top-color",
+    "border-right-color",
+    "border-bottom-color",
+    "border-left-color",
+    "outline-color",
+    "text-decoration-color",
+  ];
+  const isBad = (v: string) =>
+    v.includes("oklch") ||
+    v.includes("oklab") ||
+    v.includes("lab(") ||
+    v.includes("lch(") ||
+    v.includes("color-mix");
+
+  const walk = (el: Element) => {
+    if (el instanceof HTMLElement) {
+      const cs = getComputedStyle(el);
+      for (const prop of PROPS) {
+        const val = cs.getPropertyValue(prop);
+        if (val && isBad(val)) el.style.setProperty(prop, resolveColor(val));
+      }
+    }
+    for (const child of Array.from(el.children)) walk(child);
+  };
+
+  walk(root);
 }
 
 // ── PDF export ───────────────────────────────────────────────────────────────
@@ -673,6 +729,10 @@ async function exportPdf(
 ) {
   onProgress("Preparing styles…");
   const convertedCss = await prepareStyles();
+
+  // Failsafe: force-resolve any surviving modern color values as inline rgb()
+  // overrides on the live element so they carry through into html2canvas's clone.
+  sanitizeExportColors(exportEl);
 
   onProgress("Rendering layout…");
   const html2canvas = (await import("html2canvas")).default;
@@ -692,9 +752,8 @@ async function exportPdf(
     x: 0,
     y: 0,
     onclone: (clonedDoc: Document) => {
-      // Swap all stylesheets for the pre-converted version (no oklch/lab).
-      // The converted CSS keeps every Tailwind class intact — only the color
-      // function syntax changes from oklch() to rgb().
+      // Replace all stylesheets with the pre-converted version.
+      // Every Tailwind/shadcn class survives — only color function syntax changes.
       clonedDoc
         .querySelectorAll('style, link[rel="stylesheet"]')
         .forEach((el) => el.remove());
