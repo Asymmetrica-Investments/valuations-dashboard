@@ -126,29 +126,7 @@
   }
   html {
     @apply font-sans;
-    scrollbar-width: thin;
-    scrollbar-color: #333333 #0a0a0a;
   }
-}
-
-/* ── Custom scrollbars ────────────────────────────────────────────────────── */
-
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #0a0a0a;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #333333;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #555555;
 }
 
 /* ── Print / Export Memo ──────────────────────────────────────────────────── */

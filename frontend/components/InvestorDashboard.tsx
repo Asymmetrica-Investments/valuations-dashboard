@@ -17,6 +17,7 @@ import {
   Cell,
 } from "recharts";
 import { FileDown, X, TrendingUp, TrendingDown, Minus, Loader2 } from "lucide-react";
+import { TearSheet, TearSheetPreview } from "@/components/TearSheet";
 import {
   Table,
   TableBody,
@@ -333,10 +334,9 @@ interface ValuationViewProps {
   latest: FinancialMetrics | undefined;
   cur: string;
   currencyFmt: (v: number) => string;
-  disableAnimation?: boolean;
 }
 
-function ValuationView({ data, latest, cur, currencyFmt, disableAnimation = false }: ValuationViewProps) {
+function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
   const [scenario, setScenario] = useState<"base" | "stress">("base");
 
   // ── DCF assumption constants ──────────���────────────────────────────────────
@@ -448,9 +448,9 @@ function ValuationView({ data, latest, cur, currencyFmt, disableAnimation = fals
                     cursor={{ fill: "rgba(255,255,255,0.03)" }}
                   />
                   {/* Invisible spacer floats the bars */}
-                  <Bar dataKey="spacer" stackId="wf" fill="transparent" legendType="none" isAnimationActive={!disableAnimation} />
+                  <Bar dataKey="spacer" stackId="wf" fill="transparent" legendType="none" />
                   {/* Colored value bars */}
-                  <Bar dataKey="bar" stackId="wf" name="Value" radius={[3, 3, 0, 0]} isAnimationActive={!disableAnimation}>
+                  <Bar dataKey="bar" stackId="wf" name="Value" radius={[3, 3, 0, 0]}>
                     {waterfallData.map((entry, i) => (
                       <Cell
                         key={i}
@@ -621,373 +621,64 @@ function ValuationView({ data, latest, cur, currencyFmt, disableAnimation = fals
 }
 
 // ── PDF export ───────────────────────────────────────────────────────────────
-// Renders each .export-section individually with html-to-image, then
-// places them into a landscape A4 PDF with smart pagination — a section that
-// doesn't fit on the remaining space of the current page is bumped cleanly
-// to a fresh page, so charts are never sliced in half.
 async function exportPdf(
-  exportEl: HTMLElement,
+  tearSheetEl: HTMLElement,
   companyName: string,
   onProgress: (s: string) => void
 ) {
   onProgress("Rendering layout…");
-
-  // Wait for all Recharts / framer-motion animations to settle before capture.
-  await new Promise<void>((r) => setTimeout(r, 800));
-
-  const { toPng } = await import("html-to-image");
+  const html2canvas = (await import("html2canvas")).default;
   const jsPDF = (await import("jspdf")).default;
 
-  const sections = Array.from(
-    exportEl.querySelectorAll<HTMLElement>(".export-section")
-  );
-  if (sections.length === 0) throw new Error("No .export-section elements found");
+  onProgress("Capturing screenshot…");
+  console.log("[export] tear-sheet element:", tearSheetEl);
+  console.log("[export] dimensions:", tearSheetEl.scrollWidth, "×", tearSheetEl.scrollHeight);
+  const canvas = await html2canvas(tearSheetEl, {
+    scale: 2,
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: "#09090b",
+    logging: true,
+    width: tearSheetEl.scrollWidth,
+    height: tearSheetEl.scrollHeight,
+    windowWidth: tearSheetEl.scrollWidth,
+    windowHeight: tearSheetEl.scrollHeight,
+    x: 0,
+    y: 0,
+    // Strip every stylesheet from the cloned document before parsing begins.
+    // Tailwind v4 outputs oklch()/lab() colors which html2canvas cannot parse,
+    // causing a hard crash. The TearSheet uses only inline styles, so removing
+    // external CSS has zero effect on the rendered output.
+    onclone: (clonedDoc: Document) => {
+      clonedDoc
+        .querySelectorAll('style, link[rel="stylesheet"]')
+        .forEach((el) => el.remove());
+    },
+  });
+  console.log("[export] canvas:", canvas.width, "×", canvas.height);
 
+  onProgress("Building PDF…");
+  const imgData = canvas.toDataURL("image/png");
   const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pdfW = pdf.internal.pageSize.getWidth();
   const pdfH = pdf.internal.pageSize.getHeight();
-  const MARGIN = 8;
-  const usableW = pdfW - MARGIN * 2;
-  let currentY = MARGIN;
-  let firstSection = true;
 
-  for (let i = 0; i < sections.length; i++) {
-    const section = sections[i];
-    onProgress(`Capturing section ${i + 1} of ${sections.length}…`);
+  // Scale canvas to fill the page width; paginate vertically if needed
+  const ratio = canvas.height / canvas.width;
+  const imgH = pdfW * ratio;
+  let yOffset = 0;
+  let remainingH = imgH;
 
-    const dataUrl = await toPng(section, {
-      backgroundColor: "#09090b",
-      pixelRatio: 2,
-    });
-
-    // Use offsetWidth/Height so padding and borders are included
-    const sectionRatio = section.offsetHeight / (section.offsetWidth || 1);
-    const imgW = usableW;
-    const imgH = imgW * sectionRatio;
-
-    // Bump to a new page if this section won't fit
-    if (!firstSection && currentY + imgH > pdfH - MARGIN) {
-      pdf.addPage();
-      currentY = MARGIN;
-    }
-
-    pdf.addImage(dataUrl, "PNG", MARGIN, currentY, imgW, imgH);
-    currentY += imgH + 3; // 3 mm gap between sections
-    firstSection = false;
+  while (remainingH > 0) {
+    if (yOffset > 0) pdf.addPage();
+    pdf.addImage(imgData, "PNG", 0, -yOffset, pdfW, imgH);
+    yOffset += pdfH;
+    remainingH -= pdfH;
   }
 
   onProgress("Downloading…");
-  pdf.save(`${companyName.toLowerCase().replace(/\s+/g, "-")}-tear-sheet.pdf`);
-}
-
-// ── ExportContent: pixel-perfect layout using real dashboard components ───────
-// Renders Operating Metrics then a CSS page-break then Valuation Analysis.
-// Wrapping style overrides all CSS vars with hex so dark theme is guaranteed
-// regardless of the html class state during capture.
-function ExportContent({ data, fileName }: { data: ExtractedFinancials; fileName?: string }) {
-  const cur = data.reporting_currency;
-
-  const latest: FinancialMetrics | undefined =
-    [...data.metrics].reverse().find((m) => !m.is_projected) ??
-    data.metrics[data.metrics.length - 1];
-
-  const currencyFmt = useCallback(
-    (v: number) =>
-      new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: cur,
-        notation: "compact",
-        maximumFractionDigits: 1,
-      }).format(v),
-    [cur]
-  );
-
-  const monthsFmt = useCallback((v: number) => `${v.toFixed(1)} mo`, []);
-
-  const runway =
-    latest?.implied_runway_months ??
-    (latest?.cash_balance != null &&
-    latest?.monthly_burn_rate != null &&
-    latest.monthly_burn_rate > 0
-      ? latest.cash_balance / latest.monthly_burn_rate
-      : null);
-
-  const chartData = data.metrics.map((m) => {
-    const ebitda_margin_pct =
-      m.ebitda != null && m.revenue != null && m.revenue !== 0
-        ? (m.ebitda / m.revenue) * 100
-        : null;
-    return {
-      period: m.period,
-      revenue: m.revenue,
-      ebitda: m.ebitda,
-      cash: m.cash_balance,
-      gross_margin_pct: m.gross_margin_pct,
-      ebitda_margin_pct,
-      net_income: m.net_income,
-      projected: m.is_projected,
-    };
-  });
-
-  const chartMaxAbs = Math.max(
-    1,
-    ...chartData.flatMap((d) => [
-      Math.abs(d.revenue ?? 0),
-      Math.abs(d.ebitda ?? 0),
-      Math.abs(d.cash ?? 0),
-      Math.abs(d.net_income ?? 0),
-    ])
-  );
-  const currencyUnit =
-    chartMaxAbs >= 1e9
-      ? `in billions · ${cur}`
-      : chartMaxAbs >= 1e6
-      ? `in millions · ${cur}`
-      : chartMaxAbs >= 1e3
-      ? `in thousands · ${cur}`
-      : cur;
-
-  const today = new Date().toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-
-  return (
-    <div
-      className="dark"
-      style={
-        {
-          width: 1400,
-          backgroundColor: "#09090b",
-          padding: "36px 48px",
-          fontFamily: "ui-sans-serif, system-ui, -apple-system, sans-serif",
-          // Hex overrides for dark-theme CSS variables — ensures correct colors
-          // even if the capturing context lacks the .dark class on <html>.
-          "--background": "#09090b",
-          "--foreground": "#fafafa",
-          "--card": "#18181b",
-          "--card-foreground": "#fafafa",
-          "--popover": "#18181b",
-          "--popover-foreground": "#fafafa",
-          "--muted": "#27272a",
-          "--muted-foreground": "#a1a1aa",
-          "--border": "rgba(255,255,255,0.1)",
-          "--input": "rgba(255,255,255,0.15)",
-          "--ring": "#71717a",
-          "--primary": "#e4e4e7",
-          "--primary-foreground": "#18181b",
-          "--secondary": "#27272a",
-          "--secondary-foreground": "#fafafa",
-          "--accent": "#27272a",
-          "--accent-foreground": "#fafafa",
-          "--destructive": "#ef4444",
-        } as React.CSSProperties
-      }
-    >
-      {/* ── Section 1: Header + KPI grid ─────────────────────────────────── */}
-      <div className="export-section mb-3 pb-3">
-        {/* Header */}
-        <div className="mb-5 pb-4 border-b border-zinc-800">
-          <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-600 mb-1">
-            Asymmetrica Valuations · {fileName || "Financial Analysis"}
-          </p>
-          <h1 className="text-3xl font-light tracking-tight text-white mb-1">
-            {data.company_name}
-          </h1>
-          <p className="text-[10px] uppercase tracking-[0.16em] text-zinc-400">
-            {data.reporting_period_type} · {cur} ·{" "}
-            {Math.round(data.confidence_score * 100)}% confidence
-          </p>
-          <p className="text-[9px] text-zinc-600 mt-1">{today}</p>
-        </div>
-
-        {/* Section label */}
-        <div className="flex items-center gap-3 mb-4">
-          <span className="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600 whitespace-nowrap">
-            Operating Metrics
-          </span>
-          <div className="flex-1 h-px bg-zinc-800" />
-        </div>
-
-        {/* KPI grid */}
-        <div className="grid grid-cols-4 gap-3">
-          <KpiCard label="Revenue" rawValue={latest?.revenue} formatFn={currencyFmt} sub={latest?.period} />
-          <KpiCard
-            label="EBITDA"
-            rawValue={latest?.ebitda}
-            formatFn={currencyFmt}
-            sub={latest?.period}
-            valueClass={latest?.ebitda == null ? "" : latest.ebitda >= 0 ? "text-emerald-300" : "text-red-300"}
-          />
-          <KpiCard label="Cash Balance" rawValue={latest?.cash_balance} formatFn={currencyFmt} sub={latest?.period} />
-          <KpiCard
-            label="Runway"
-            rawValue={runway}
-            formatFn={monthsFmt}
-            sub="implied"
-            icon={runwayIcon(runway)}
-            valueClass={runwayClass(runway)}
-          />
-        </div>
-      </div>
-
-      {/* ── Section 2: Charts row 1 (Revenue vs EBITDA + Cash Balance) ────── */}
-      <div className="export-section grid grid-cols-2 gap-6 mb-3">
-        <GlassPanel>
-          <PanelHeader title="Revenue vs EBITDA" sub={currencyUnit} />
-          <div className="h-[230px] px-2 pt-4 pb-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} barGap={3} barCategoryGap="32%">
-                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis dataKey="period" tick={{ fill: "#d4d4d8", fontSize: 12 }} axisLine={{ stroke: "#3f3f46" }} tickLine={false} />
-                <YAxis tick={{ fill: "#d4d4d8", fontSize: 12 }} axisLine={{ stroke: "#3f3f46" }} tickLine={false}
-                  tickFormatter={(v) => compactNum(v).replace(/[A-Za-z]+$/, "")} width={48} />
-                <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: "#e4e4e7" }} labelStyle={{ color: "#a1a1aa" }}
-                  formatter={(v) => fmtCurrency(v as number, cur)} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
-                <Legend wrapperStyle={{ fontSize: 10, color: "#d4d4d8", paddingTop: 8 }} iconType="square" iconSize={7} />
-                <ReferenceLine y={0} stroke={P.zero} />
-                <Bar isAnimationActive={false} dataKey="revenue" name="Revenue" radius={[3, 3, 0, 0]} fill={P.revenue} />
-                <Bar isAnimationActive={false} dataKey="ebitda" name="EBITDA" fill={P.ebitdaPos} radius={[3, 3, 0, 0]}>
-                  {chartData.map((entry, i) => (
-                    <Cell key={i} fill={(entry.ebitda ?? 0) >= 0 ? P.ebitdaPos : P.ebitdaNeg} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </GlassPanel>
-
-        <GlassPanel>
-          <PanelHeader title="Cash Balance" sub={currencyUnit} />
-          <div className="h-[230px] px-2 pt-4 pb-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis dataKey="period" tick={{ fill: "#d4d4d8", fontSize: 12 }} axisLine={{ stroke: "#3f3f46" }} tickLine={false} padding={{ left: 30, right: 30 }} />
-                <YAxis tick={{ fill: "#d4d4d8", fontSize: 12 }} axisLine={{ stroke: "#3f3f46" }} tickLine={false}
-                  tickFormatter={(v) => compactNum(v).replace(/[A-Za-z]+$/, "")} width={48} />
-                <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: "#e4e4e7" }} labelStyle={{ color: "#a1a1aa" }}
-                  formatter={(v) => fmtCurrency(v as number, cur)} cursor={{ stroke: "rgba(255,255,255,0.06)" }} />
-                <Line isAnimationActive={false} type="monotone" dataKey="cash" name="Cash" stroke={P.cash} strokeWidth={1.5}
-                  dot={{ r: 2.5, fill: P.cash, strokeWidth: 0 }} activeDot={{ r: 4, strokeWidth: 0 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </GlassPanel>
-      </div>
-
-      {/* ── Section 3: Charts row 2 (Margin Evolution + Profitability) ──────── */}
-      <div className="export-section grid grid-cols-2 gap-6 mb-3">
-        <GlassPanel>
-          <PanelHeader title="Margin Evolution" sub="in percent" />
-          <div className="h-[230px] px-2 pt-4 pb-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis dataKey="period" tick={{ fill: "#d4d4d8", fontSize: 12 }} axisLine={{ stroke: "#3f3f46" }} tickLine={false} padding={{ left: 30, right: 30 }} />
-                <YAxis tick={{ fill: "#d4d4d8", fontSize: 12 }} axisLine={{ stroke: "#3f3f46" }} tickLine={false}
-                  tickFormatter={(v) => `${v.toFixed(0)}%`} width={44} />
-                <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: "#e4e4e7" }} labelStyle={{ color: "#a1a1aa" }}
-                  formatter={(v) => `${(v as number).toFixed(1)}%`} cursor={{ stroke: "rgba(255,255,255,0.06)" }} />
-                <Legend wrapperStyle={{ fontSize: 10, color: "#d4d4d8", paddingTop: 8 }} iconType="square" iconSize={7} />
-                <ReferenceLine y={0} stroke={P.zero} />
-                <Line isAnimationActive={false} type="monotone" dataKey="gross_margin_pct" name="Gross Margin" stroke={P.grossMargin} strokeWidth={1.5}
-                  dot={{ r: 2.5, fill: P.grossMargin, strokeWidth: 0 }} activeDot={{ r: 4, strokeWidth: 0 }} connectNulls />
-                <Line isAnimationActive={false} type="monotone" dataKey="ebitda_margin_pct" name="EBITDA Margin" stroke={P.ebitdaMargin} strokeWidth={1.5}
-                  strokeDasharray="4 3" dot={{ r: 2.5, fill: P.ebitdaMargin, strokeWidth: 0 }} activeDot={{ r: 4, strokeWidth: 0 }} connectNulls />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </GlassPanel>
-
-        <GlassPanel>
-          <PanelHeader title="Profitability Conversion" sub={currencyUnit} />
-          <div className="h-[230px] px-2 pt-4 pb-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} barGap={4} barCategoryGap="30%">
-                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#27272a" />
-                <XAxis dataKey="period" tick={{ fill: "#d4d4d8", fontSize: 12 }} axisLine={{ stroke: "#3f3f46" }} tickLine={false} />
-                <YAxis tick={{ fill: "#d4d4d8", fontSize: 12 }} axisLine={{ stroke: "#3f3f46" }} tickLine={false}
-                  tickFormatter={(v) => compactNum(v).replace(/[A-Za-z]+$/, "")} width={48} />
-                <Tooltip contentStyle={tooltipStyle} itemStyle={{ color: "#e4e4e7" }} labelStyle={{ color: "#a1a1aa" }}
-                  formatter={(v) => fmtCurrency(v as number, cur)} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
-                <Legend wrapperStyle={{ fontSize: 10, color: "#d4d4d8", paddingTop: 8 }} iconType="square" iconSize={7} />
-                <ReferenceLine y={0} stroke={P.zero} />
-                <Bar isAnimationActive={false} dataKey="ebitda" name="EBITDA" fill={P.ebitdaPos} radius={[3, 3, 0, 0]}>
-                  {chartData.map((entry, i) => (
-                    <Cell key={i} fill={(entry.ebitda ?? 0) >= 0 ? P.ebitdaPos : P.ebitdaNeg} />
-                  ))}
-                </Bar>
-                <Bar isAnimationActive={false} dataKey="net_income" name="Net Income" fill={P.netIncome} radius={[3, 3, 0, 0]}>
-                  {chartData.map((entry, i) => (
-                    <Cell key={i} fill={(entry.net_income ?? 0) >= 0 ? P.netIncome : P.ebitdaNeg} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </GlassPanel>
-      </div>
-
-      {/* ── Section 4: Metrics table ────────────────────────────────────────── */}
-      <div className="export-section mb-3">
-        <GlassPanel>
-          <PanelHeader title="Extracted Metrics by Period" />
-          <div className="overflow-x-auto px-1 pb-2 pt-4">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-zinc-800/40 hover:bg-transparent">
-                  {["Period", "Revenue", "Gross Margin", "EBITDA", "Net Income", "Cash", "Burn / mo", "Runway", "CAC", "LTV", "LTV/CAC"].map((h, i) => (
-                    <TableHead key={h} className={cn("text-[10px] uppercase tracking-widest text-zinc-500", i > 0 && "text-right")}>{h}</TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.metrics.map((m, i) => (
-                  <TableRow key={i} className="border-zinc-800/30">
-                    <TableCell className="whitespace-nowrap text-sm font-light text-zinc-300">
-                      {m.period}
-                      {m.is_projected && (
-                        <span className="ml-2 rounded px-1 py-0.5 text-[9px] uppercase tracking-wider bg-amber-500/10 text-amber-400/80 border border-amber-500/15">proj</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtCurrency(m.revenue, cur)}</TableCell>
-                    <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtPct(m.gross_margin_pct)}</TableCell>
-                    <TableCell className={cn("text-right text-sm tabular-nums font-light", m.ebitda == null ? "text-zinc-600" : m.ebitda >= 0 ? "text-emerald-300/80" : "text-red-300/80")}>
-                      {fmtCurrency(m.ebitda, cur)}
-                    </TableCell>
-                    <TableCell className={cn("text-right text-sm tabular-nums font-light", m.net_income == null ? "text-zinc-600" : m.net_income >= 0 ? "text-emerald-300/80" : "text-red-300/80")}>
-                      {fmtCurrency(m.net_income, cur)}
-                    </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtCurrency(m.cash_balance, cur)}</TableCell>
-                    <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtCurrency(m.monthly_burn_rate, cur)}</TableCell>
-                    <TableCell className={cn("text-right text-sm tabular-nums font-light", runwayClass(m.implied_runway_months))}>
-                      {fmtMonths(m.implied_runway_months)}
-                    </TableCell>
-                    <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtCurrency(m.cac, cur)}</TableCell>
-                    <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtCurrency(m.ltv, cur)}</TableCell>
-                    <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">{fmtRatio(m.ltv_to_cac_ratio)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </GlassPanel>
-      </div>
-
-      {/* ── Section 5: Fair Market Value Analysis ───────────────────────────── */}
-      <div className="export-section">
-        <div className="flex items-center gap-3 mb-5">
-          <span className="text-[8px] font-bold uppercase tracking-[0.22em] text-zinc-600 whitespace-nowrap">
-            Fair Market Value Analysis
-          </span>
-          <div className="flex-1 h-px bg-zinc-800" />
-        </div>
-        <ValuationView data={data} latest={latest} cur={cur} currencyFmt={currencyFmt} disableAnimation />
-      </div>
-    </div>
-  );
+  const slug = companyName.toLowerCase().replace(/\s+/g, "-");
+  pdf.save(`${slug}-tear-sheet.pdf`);
 }
 
 // ── Export modal ─────────────────────────────────────────────────────────────
@@ -1026,6 +717,13 @@ function ExportModal({ data, fileName, tearSheetRef, onClose }: ExportModalProps
     }
   }
 
+  const latest = [...data.metrics].reverse().find((m) => !m.is_projected) ?? data.metrics[data.metrics.length - 1];
+  const cur = data.reporting_currency;
+  const fmtC = (v: number | null | undefined) =>
+    v == null
+      ? "—"
+      : new Intl.NumberFormat("en-US", { style: "currency", currency: cur, notation: "compact", maximumFractionDigits: 1 }).format(v);
+
   return (
     <AnimatePresence>
       <motion.div
@@ -1057,7 +755,7 @@ function ExportModal({ data, fileName, tearSheetRef, onClose }: ExportModalProps
               {fileName || "Financial Tear-Sheet"}
             </h3>
             <p className="mt-1 text-[11px] text-zinc-500">
-              Landscape A4 PDF · 1400px desktop layout · Operating Metrics + Valuation
+              Landscape A4 PDF · 1200px desktop layout · Dark theme
             </p>
 
             <div className="mt-5 h-px bg-zinc-800/60" />
@@ -1068,8 +766,8 @@ function ExportModal({ data, fileName, tearSheetRef, onClose }: ExportModalProps
               className="mt-5 rounded-xl border border-zinc-800/50 overflow-y-auto overflow-x-hidden"
               style={{ maxHeight: "70vh", background: "#09090b" }}
             >
-              <div style={{ zoom: 0.64, pointerEvents: "none", userSelect: "none" }}>
-                <ExportContent data={data} fileName={fileName} />
+              <div style={{ zoom: 0.72, pointerEvents: "none", userSelect: "none" }}>
+                <TearSheetPreview data={data} fileName={fileName} />
               </div>
             </div>
 
@@ -1707,14 +1405,8 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
         </AnimatePresence>
       </motion.div>
 
-      {/* Hidden export container — in DOM but invisible, fully painted by browser */}
-      <div
-        ref={tearSheetRef}
-        className="absolute top-0 left-0 opacity-0 -z-50 pointer-events-none"
-        style={{ width: 1400 }}
-      >
-        <ExportContent data={data} fileName={fileName} />
-      </div>
+      {/* Hidden tear-sheet captured by html2canvas — never visible to user */}
+      <TearSheet data={data} fileName={fileName} innerRef={tearSheetRef} />
 
       {/* Export modal */}
       {exportOpen && (
