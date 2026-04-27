@@ -713,7 +713,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
     { label: "Terminal growth",       val: `${(E_TG * 100).toFixed(1)}%`,   hi: false },
   ];
 
-  const secPad: React.CSSProperties = { backgroundColor: bg, padding: "0 48px 28px" };
+  const secPad: React.CSSProperties = { backgroundColor: bg, padding: 0, margin: 0, width: "100%" };
   const panelStyle = (extra?: React.CSSProperties): React.CSSProperties => ({ borderRadius: 12, border: `1px solid ${brd}`, backgroundColor: card, overflow: "hidden", ...extra });
   const panelHeader = (title: string, sub?: string) => (
     <div style={{ padding: "14px 16px 0" }}>
@@ -739,10 +739,10 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
   ];
 
   return (
-    <div style={{ width: 1400, backgroundColor: bg, fontFamily: "var(--font-geist-sans, system-ui, sans-serif)" }}>
+    <div style={{ width: 1400, backgroundColor: bg, fontFamily: "var(--font-geist-sans, system-ui, sans-serif)", padding: 0, margin: 0 }}>
 
       {/* ── Section 1: Header + KPI grid ── */}
-      <div className="export-section" style={{ ...secPad, padding: "36px 48px 28px" }}>
+      <div className="export-section w-full" style={{ ...secPad, paddingTop: 36, paddingBottom: 28 }}>
         <div style={{ marginBottom: 20 }}>
           <p style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: muted, margin: 0 }}>
             Asymmetrica · Investment Due Diligence
@@ -766,7 +766,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
       </div>
 
       {/* ── Section 2: Revenue vs EBITDA + Cash Balance ── */}
-      <div className="export-section" style={secPad}>
+      <div className="export-section w-full" style={secPad}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <div style={panelStyle()}>
             {panelHeader("Revenue vs EBITDA", `in ${unit}`)}
@@ -805,7 +805,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
       </div>
 
       {/* ── Section 3: Margin Evolution + Profitability ── */}
-      <div className="export-section" style={secPad}>
+      <div className="export-section w-full" style={secPad}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <div style={panelStyle()}>
             {panelHeader("Margin Evolution", "in percent")}
@@ -849,7 +849,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
       </div>
 
       {/* ── Section 4: Metrics table ── */}
-      <div className="export-section" style={secPad}>
+      <div className="export-section w-full" style={secPad}>
         <div style={panelStyle({ padding: "16px 0 8px" })}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 16px 12px" }}>
             <p style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", color: muted, margin: 0 }}>Extracted Metrics by Period</p>
@@ -885,7 +885,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
       </div>
 
       {/* ── Section 5: Valuation Analysis — FCFF Waterfall + WACC Engine ── */}
-      <div className="export-section" style={{ ...secPad, paddingTop: 28 }}>
+      <div className="export-section w-full" style={secPad}>
         {sectionLabel("Valuation Analysis — DCF")}
         <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 16 }}>
 
@@ -1764,7 +1764,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
       <div
         ref={tearSheetRef}
         className="absolute top-0 left-0 opacity-0 -z-50 pointer-events-none"
-        style={{ width: 1400, height: "max-content" }}
+        style={{ width: 1400, height: "max-content", padding: 0, margin: 0, overflow: "visible" }}
       >
         <ExportContent data={data} theme={exportTheme} />
       </div>
