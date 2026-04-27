@@ -149,7 +149,7 @@ function IdleView({ onFile }: { onFile: (f: File) => void }) {
         {/* Title */}
         <motion.h1
           variants={fadeUp}
-          className="text-5xl font-extralight tracking-tighter text-white text-center"
+          className="text-5xl font-extralight tracking-tighter text-zinc-900 dark:text-white text-center"
         >
           Asymmetrica Valuations
         </motion.h1>
@@ -172,7 +172,7 @@ function IdleView({ onFile }: { onFile: (f: File) => void }) {
           className="relative w-full p-[1px] rounded-3xl overflow-hidden"
         >
           {/* Static base border */}
-          <div className="absolute inset-0 rounded-3xl border border-zinc-800/50" />
+          <div className="absolute inset-0 rounded-3xl border border-zinc-200 dark:border-zinc-800/50" />
 
           {/* Metallic spotlight — follows cursor along the 1px border gap */}
           <div
@@ -192,8 +192,8 @@ function IdleView({ onFile }: { onFile: (f: File) => void }) {
             onDragLeave={() => setDragging(false)}
             onDrop={handleDrop}
             className={cn(
-              "relative rounded-[calc(1.5rem-1px)] bg-zinc-900/40 backdrop-blur-xl transition-colors duration-300",
-              dragging && "bg-zinc-800/50"
+              "relative rounded-[calc(1.5rem-1px)] bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl transition-colors duration-300",
+              dragging && "dark:bg-zinc-800/50 bg-zinc-100/80"
             )}
           >
             <AnimatePresence mode="wait">
@@ -208,10 +208,10 @@ function IdleView({ onFile }: { onFile: (f: File) => void }) {
                   className="flex flex-col items-center justify-center gap-6 px-8 py-14 min-h-[320px]"
                 >
                   {/* File info row */}
-                  <div className="flex w-full max-w-sm items-center gap-3 rounded-2xl border border-zinc-800/60 bg-zinc-900/60 px-5 py-3.5">
+                  <div className="flex w-full max-w-sm items-center gap-3 rounded-2xl border border-zinc-200 dark:border-zinc-800/60 bg-white/90 dark:bg-zinc-900/60 px-5 py-3.5">
                     <FileText className="size-5 shrink-0 text-zinc-500" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-light text-zinc-300">
+                      <p className="truncate text-sm font-light text-zinc-700 dark:text-zinc-300">
                         {pending.name}
                       </p>
                       <p className="text-[10px] uppercase tracking-wider text-zinc-600">
@@ -372,7 +372,7 @@ function SuccessView({
   return (
     <div className="flex flex-col min-h-full">
       <nav
-        className="sticky top-0 z-10 flex items-center gap-3 border-b border-zinc-800/50 bg-zinc-950/80 backdrop-blur px-5 py-2.5"
+        className="sticky top-0 z-10 flex items-center gap-3 border-b border-zinc-200 dark:border-zinc-800/50 bg-white/90 dark:bg-zinc-950/80 backdrop-blur px-5 py-2.5"
         data-print-hide
       >
         {/* Logo mark */}
@@ -380,13 +380,13 @@ function SuccessView({
           <BarChart3 className="absolute size-4 text-indigo-400/20 blur-[6px]" />
           <BarChart3 className="relative size-4 text-zinc-400" />
         </div>
-        <span className="text-sm font-extralight tracking-[0.12em] text-zinc-300">
+        <span className="text-sm font-extralight tracking-[0.12em] text-zinc-700 dark:text-zinc-300">
           Asymmetrica Valuations
         </span>
         <div className="flex-1" />
         <button
           onClick={onReset}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-800/60 px-3 py-1.5 text-[11px] uppercase tracking-widest text-zinc-500 transition-colors hover:border-zinc-700 hover:text-zinc-300"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-800/60 px-3 py-1.5 text-[11px] uppercase tracking-widest text-zinc-500 transition-colors hover:border-zinc-300 dark:hover:border-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-300"
         >
           <ArrowLeft className="size-3" />
           New file
@@ -506,7 +506,7 @@ export default function Home() {
 
   if (state === "loading") {
     return (
-      <main className="flex flex-1 flex-col bg-zinc-950">
+      <main className="flex flex-1 flex-col bg-[#FAF9F6] dark:bg-zinc-950">
         <LoadingView step={PROCESSING_STEPS[stepIdx]} />
       </main>
     );
@@ -514,14 +514,14 @@ export default function Home() {
 
   if (state === "success" && data) {
     return (
-      <main className="flex flex-1 flex-col bg-zinc-950">
+      <main className="flex flex-1 flex-col bg-[#FAF9F6] dark:bg-zinc-950">
         <SuccessView data={data} fileName={fileName} onReset={() => { setData(null); setState("idle"); }} />
       </main>
     );
   }
 
   return (
-    <main className="flex flex-1 flex-col bg-zinc-950">
+    <main className="flex flex-1 flex-col bg-[#FAF9F6] dark:bg-zinc-950">
       <IdleView onFile={handleFileSelect} />
     </main>
   );

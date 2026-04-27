@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/table";
 import { DotPattern } from "@/components/ui/dot-pattern";
 import { NumberTicker } from "@/components/ui/number-ticker";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import type { ExtractedFinancials, FinancialMetrics } from "@/lib/schema";
 
@@ -144,7 +145,7 @@ function PremiumCard({ children, className }: PremiumCardProps) {
       )}
     >
       {/* Static base border */}
-      <div className="absolute inset-0 rounded-2xl border border-zinc-800/50" />
+      <div className="absolute inset-0 rounded-2xl border border-zinc-200 dark:border-zinc-800/50" />
 
       {/* Metallic spotlight — follows cursor along the 1px border gap */}
       <div
@@ -159,7 +160,7 @@ function PremiumCard({ children, className }: PremiumCardProps) {
       />
 
       {/* Card surface */}
-      <div className="relative rounded-[calc(1rem-1px)] bg-zinc-900/50 backdrop-blur-xl">
+      <div className="relative rounded-[calc(1rem-1px)] bg-white dark:bg-zinc-900/50 backdrop-blur-xl">
         {children}
       </div>
     </div>
@@ -177,7 +178,7 @@ function GlassPanel({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-zinc-800/50 bg-zinc-900/40 backdrop-blur-xl",
+        "rounded-2xl border border-zinc-200 dark:border-zinc-800/50 bg-white/90 dark:bg-zinc-900/40 backdrop-blur-xl",
         className
       )}
     >
@@ -213,7 +214,7 @@ function KpiCard({ label, rawValue, formatFn, sub, icon, valueClass }: KpiCardPr
           <div className="flex items-end justify-between gap-2">
             <span
               className={cn(
-                "text-5xl font-light tracking-tight text-white leading-none",
+                "text-5xl font-light tracking-tight text-zinc-900 dark:text-white leading-none",
                 valueClass
               )}
             >
@@ -236,15 +237,25 @@ function KpiCard({ label, rawValue, formatFn, sub, icon, valueClass }: KpiCardPr
   );
 }
 
-// ── Chart tooltip ───────��──────────────────────────────────────���──────────────
-const tooltipStyle: React.CSSProperties = {
-  backgroundColor: "#09090b",
-  borderColor: "#27272a",
-  borderRadius: "8px",
-  fontSize: "12px",
-  color: "#fff",
-  boxShadow: "0 4px 24px rgba(0,0,0,0.6)",
-};
+// ── Chart theme hook ─────────────────────────────────────────────────────────
+function useChartTheme() {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme !== "light";
+  return {
+    isDark,
+    tooltipStyle: isDark
+      ? { backgroundColor: "#09090b", borderColor: "#27272a", borderRadius: "8px", fontSize: "12px", color: "#fff", boxShadow: "0 4px 24px rgba(0,0,0,0.6)" }
+      : { backgroundColor: "#ffffff", borderColor: "#e4e4e7", borderRadius: "8px", fontSize: "12px", color: "#111827", boxShadow: "0 4px 24px rgba(0,0,0,0.1)" },
+    axisTickFill: isDark ? "#d4d4d8" : "#52525b",
+    axisLine: isDark ? "#3f3f46" : "#d4d4d8",
+    grid: isDark ? "#27272a" : "#e4e4e7",
+    itemColor: isDark ? "#e4e4e7" : "#374151",
+    labelColor: isDark ? "#a1a1aa" : "#6b7280",
+    cursorFill: isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
+    cursorStroke: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
+    legendColor: isDark ? "#d4d4d8" : "#52525b",
+  } as const;
+}
 
 // ── Panel header ──────────────────────────���──────────────────────────────────��
 function PanelHeader({ title, sub }: { title: string; sub?: string }) {
@@ -338,6 +349,7 @@ interface ValuationViewProps {
 
 function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
   const [scenario, setScenario] = useState<"base" | "stress">("base");
+  const CT = useChartTheme();
 
   // ── DCF assumption constants ──────────���────────────────────────────────────
   const TAX_RATE   = 0.25;   // 25% effective tax rate
@@ -422,30 +434,30 @@ function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
             <div className="h-[260px] px-2 pt-2 pb-2">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={waterfallData} barCategoryGap="28%">
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#27272a" />
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={CT.grid} />
                   <XAxis
                     dataKey="name"
-                    tick={{ fill: "#d4d4d8", fontSize: 11 }}
-                    axisLine={{ stroke: "#3f3f46" }}
+                    tick={{ fill: CT.axisTickFill, fontSize: 11 }}
+                    axisLine={{ stroke: CT.axisLine }}
                     tickLine={false}
                   />
                   <YAxis
-                    tick={{ fill: "#d4d4d8", fontSize: 11 }}
-                    axisLine={{ stroke: "#3f3f46" }}
+                    tick={{ fill: CT.axisTickFill, fontSize: 11 }}
+                    axisLine={{ stroke: CT.axisLine }}
                     tickLine={false}
                     tickFormatter={(v) => compactNum(v).replace(/[A-Za-z]+$/, "")}
                     width={48}
                   />
                   <Tooltip
-                    contentStyle={tooltipStyle}
-                    itemStyle={{ color: "#e4e4e7" }}
-                    labelStyle={{ color: "#a1a1aa" }}
+                    contentStyle={CT.tooltipStyle}
+                    itemStyle={{ color: CT.itemColor }}
+                    labelStyle={{ color: CT.labelColor }}
                     formatter={(v, name) =>
                       name === "spacer"
                         ? null
                         : [fmtCurrency(v as number, cur), ""]
                     }
-                    cursor={{ fill: "rgba(255,255,255,0.03)" }}
+                    cursor={{ fill: CT.cursorFill }}
                   />
                   {/* Invisible spacer floats the bars */}
                   <Bar dataKey="spacer" stackId="wf" fill="transparent" legendType="none" />
@@ -482,13 +494,13 @@ function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
             <div className="px-5 pb-5 pt-1 space-y-3">
 
               {/* WACC formula */}
-              <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/60 px-4 py-3">
+              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/60 px-4 py-3">
                 <p className="text-[9px] uppercase tracking-[0.18em] text-zinc-600 mb-2">WACC</p>
                 <WaccFormula />
               </div>
 
               {/* CAPM formula */}
-              <div className="rounded-xl border border-zinc-800/60 bg-zinc-900/60 px-4 py-3">
+              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/60 px-4 py-3">
                 <p className="text-[9px] uppercase tracking-[0.18em] text-zinc-600 mb-2">Cost of Equity · CAPM</p>
                 <CAPMFormula />
               </div>
@@ -501,15 +513,15 @@ function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
                     className={cn(
                       "flex items-center justify-between rounded-lg px-3 py-1.5",
                       row.hi
-                        ? "bg-zinc-800/40 border border-zinc-700/30"
-                        : "hover:bg-white/[0.02] transition-colors"
+                        ? "bg-zinc-100 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/30"
+                        : "hover:bg-zinc-100/60 dark:hover:bg-white/[0.02] transition-colors"
                     )}
                   >
                     <span className="text-[11px] text-zinc-500">{row.label}</span>
                     <span
                       className={cn(
                         "font-mono text-[12px] tabular-nums",
-                        row.hi ? "text-zinc-200 font-medium" : "text-zinc-400"
+                        row.hi ? "text-zinc-800 dark:text-zinc-200 font-medium" : "text-zinc-500 dark:text-zinc-400"
                       )}
                     >
                       {row.val}
@@ -533,7 +545,7 @@ function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
               </p>
               <div className="h-px w-24 bg-gradient-to-r from-zinc-800 to-transparent" />
             </div>
-            <div className="flex rounded-xl border border-zinc-800/60 bg-zinc-900/60 p-[3px] gap-[3px]">
+            <div className="flex rounded-xl border border-zinc-200 dark:border-zinc-800/60 bg-zinc-100 dark:bg-zinc-900/60 p-[3px] gap-[3px]">
               {(["base", "stress"] as const).map((s) => (
                 <button
                   key={s}
@@ -541,8 +553,8 @@ function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
                   className={cn(
                     "rounded-[8px] px-3 py-1 text-[10px] uppercase tracking-widest transition-colors duration-200",
                     scenario === s
-                      ? "bg-zinc-700/60 text-zinc-200"
-                      : "text-zinc-600 hover:text-zinc-400"
+                      ? "bg-white dark:bg-zinc-700/60 text-zinc-800 dark:text-zinc-200 shadow-sm"
+                      : "text-zinc-500 dark:text-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-400"
                   )}
                 >
                   {s === "base" ? "Base" : "Stress"}
@@ -555,7 +567,7 @@ function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
             <div className="grid grid-cols-1 gap-4 px-5 pb-6 sm:grid-cols-3">
 
               {/* Normalised FCFF */}
-              <div className="rounded-2xl border border-zinc-800/40 bg-zinc-900/30 p-5">
+              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800/40 bg-zinc-50 dark:bg-zinc-900/30 p-5">
                 <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
                   Norm. FCFF
                 </p>
@@ -576,7 +588,7 @@ function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
                   Enterprise Value
                 </p>
                 <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-indigo-700/50 to-transparent" />
-                <p className="relative mt-3 text-4xl font-light text-white tabular-nums">
+                <p className="relative mt-3 text-4xl font-light text-zinc-900 dark:text-white tabular-nums">
                   <NumberTicker value={ev} format={currencyFmt} delay={0.2} />
                 </p>
                 <p className="relative mt-1 font-mono text-[10px] text-zinc-500">
@@ -604,7 +616,7 @@ function ValuationView({ data, latest, cur, currencyFmt }: ValuationViewProps) {
             </div>
           ) : (
             <div className="px-5 pb-6">
-              <div className="rounded-2xl border border-zinc-800/40 bg-zinc-900/30 p-8 text-center">
+              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800/40 bg-zinc-50 dark:bg-zinc-900/30 p-8 text-center">
                 <p className="text-sm font-light text-zinc-500">
                   Insufficient data to compute DCF valuation.
                 </p>
@@ -738,7 +750,7 @@ function ExportModal({ data, fileName, tearSheetRef, onClose }: ExportModalProps
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0, transition: { type: "spring", stiffness: 72, damping: 18 } }}
           exit={{ opacity: 0, scale: 0.96, y: 10, transition: { duration: 0.15 } }}
-          className="relative w-full max-w-5xl rounded-2xl border border-zinc-800/60 bg-zinc-950 shadow-2xl overflow-y-auto max-h-[95vh]"
+          className="relative w-full max-w-5xl rounded-2xl border border-zinc-200 dark:border-zinc-800/60 bg-white dark:bg-zinc-950 shadow-2xl overflow-y-auto max-h-[95vh]"
         >
           {/* Close */}
           <button
@@ -751,19 +763,19 @@ function ExportModal({ data, fileName, tearSheetRef, onClose }: ExportModalProps
           <div className="p-6">
             {/* Title */}
             <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-600 mb-1">Export</p>
-            <h3 className="text-lg font-light text-white tracking-tight">
+            <h3 className="text-lg font-light text-zinc-900 dark:text-white tracking-tight">
               {fileName || "Financial Tear-Sheet"}
             </h3>
             <p className="mt-1 text-[11px] text-zinc-500">
               Landscape A4 PDF · 1200px desktop layout · Dark theme
             </p>
 
-            <div className="mt-5 h-px bg-zinc-800/60" />
+            <div className="mt-5 h-px bg-zinc-200 dark:bg-zinc-800/60" />
 
             {/* Scrollable live preview — zoom shrinks content AND affects layout,
                 so overflow-y-auto gives true vertical scrolling at the scaled size */}
             <div
-              className="mt-5 rounded-xl border border-zinc-800/50 overflow-y-auto overflow-x-hidden"
+              className="mt-5 rounded-xl border border-zinc-200 dark:border-zinc-800/50 overflow-y-auto overflow-x-hidden"
               style={{ maxHeight: "70vh", background: "#09090b" }}
             >
               <div style={{ zoom: 0.72, pointerEvents: "none", userSelect: "none" }}>
@@ -775,7 +787,7 @@ function ExportModal({ data, fileName, tearSheetRef, onClose }: ExportModalProps
             {(status || done) && (
               <div className={cn(
                 "mt-4 flex items-center gap-2 rounded-xl px-4 py-2.5 text-[11px]",
-                done ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-300" : "bg-zinc-800/60 text-zinc-400"
+                done ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-300" : "bg-zinc-100 dark:bg-zinc-800/60 text-zinc-600 dark:text-zinc-400"
               )}>
                 {!done && <Loader2 className="size-3.5 animate-spin shrink-0" />}
                 <span>{done ? "PDF downloaded successfully." : status}</span>
@@ -786,7 +798,7 @@ function ExportModal({ data, fileName, tearSheetRef, onClose }: ExportModalProps
             <div className="mt-5 flex gap-3">
               <button
                 onClick={onClose}
-                className="flex-1 rounded-xl border border-zinc-800/60 bg-zinc-900/50 py-2.5 text-[11px] uppercase tracking-widest text-zinc-500 transition-colors hover:text-zinc-300"
+                className="flex-1 rounded-xl border border-zinc-200 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/50 py-2.5 text-[11px] uppercase tracking-widest text-zinc-500 transition-colors hover:text-zinc-700 dark:hover:text-zinc-300"
               >
                 Cancel
               </button>
@@ -796,8 +808,8 @@ function ExportModal({ data, fileName, tearSheetRef, onClose }: ExportModalProps
                 className={cn(
                   "flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-[11px] uppercase tracking-widest transition-all",
                   status
-                    ? "bg-zinc-800 text-zinc-600 cursor-not-allowed"
-                    : "bg-zinc-100 text-zinc-900 hover:bg-white"
+                    ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed"
+                    : "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-white"
                 )}
               >
                 <FileDown className="size-3.5" />
@@ -814,6 +826,7 @@ function ExportModal({ data, fileName, tearSheetRef, onClose }: ExportModalProps
 // ── Main component ───────────────────────────────────────────────────────────
 export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFinancials; fileName?: string }) {
   const cur = data.reporting_currency;
+  const CT = useChartTheme();
   const [activeTab, setActiveTab] = useState<"metrics" | "valuation">("metrics");
   const [exportOpen, setExportOpen] = useState(false);
   const tearSheetRef = useRef<HTMLDivElement>(null);
@@ -908,7 +921,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
         <p className="text-[10px] uppercase tracking-widest text-zinc-500">
           Due Diligence Memo
         </p>
-        <h1 className="text-2xl font-light tracking-tight text-white mt-1">
+        <h1 className="text-2xl font-light tracking-tight text-zinc-900 dark:text-white mt-1">
           {data.company_name}
         </h1>
         <p className="text-xs text-zinc-500 mt-1">
@@ -916,7 +929,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
             data.reporting_period_type.slice(1)}{" "}
           · {cur} · Confidence {Math.round(data.confidence_score * 100)}%
         </p>
-        <div className="mt-3 h-px bg-zinc-800" />
+        <div className="mt-3 h-px bg-zinc-200 dark:bg-zinc-800" />
       </div>
 
       {/* ── Animated content ──────────────────────────────────────────���──── */}
@@ -933,7 +946,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
           data-print-hide
         >
           <div>
-            <h2 className="text-2xl font-light tracking-tight text-white">
+            <h2 className="text-2xl font-light tracking-tight text-zinc-900 dark:text-white">
               {data.company_name}
             </h2>
             <p className="mt-0.5 text-[11px] uppercase tracking-[0.16em] text-zinc-500">
@@ -943,7 +956,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
           </div>
           <button
             onClick={() => setExportOpen(true)}
-            className="mt-1 inline-flex items-center gap-2 self-start rounded-xl border border-zinc-800/60 bg-zinc-900/50 px-4 py-2 text-[11px] uppercase tracking-widest text-zinc-400 backdrop-blur-sm transition-colors hover:border-zinc-700 hover:text-zinc-200"
+            className="mt-1 inline-flex items-center gap-2 self-start rounded-xl border border-zinc-200 dark:border-zinc-800/60 bg-white dark:bg-zinc-900/50 px-4 py-2 text-[11px] uppercase tracking-widest text-zinc-500 dark:text-zinc-400 backdrop-blur-sm transition-colors hover:border-zinc-300 dark:hover:border-zinc-700 hover:text-zinc-800 dark:hover:text-zinc-200"
             data-print-hide
           >
             <FileDown className="size-3.5" />
@@ -953,7 +966,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
 
         {/* Tab navigation */}
         <motion.div variants={fadeUp} data-print-hide>
-          <div className="inline-flex rounded-2xl border border-zinc-800/50 bg-zinc-900/40 backdrop-blur-sm p-[3px] gap-[3px]">
+          <div className="inline-flex rounded-2xl border border-zinc-200 dark:border-zinc-800/50 bg-zinc-100 dark:bg-zinc-900/40 backdrop-blur-sm p-[3px] gap-[3px]">
             {(["metrics", "valuation"] as const).map((tab) => (
               <button
                 key={tab}
@@ -961,8 +974,8 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
                 className={cn(
                   "rounded-[calc(1rem-3px)] px-5 py-2 text-[11px] uppercase tracking-[0.16em] transition-all duration-200",
                   activeTab === tab
-                    ? "bg-zinc-700/60 text-zinc-200 shadow-sm"
-                    : "text-zinc-600 hover:text-zinc-400"
+                    ? "bg-white dark:bg-zinc-700/60 text-zinc-900 dark:text-zinc-200 shadow-sm"
+                    : "text-zinc-500 dark:text-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-400"
                 )}
               >
                 {tab === "metrics" ? "Operating Metrics" : "Valuation Analysis"}
@@ -1032,29 +1045,29 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
                   <div className="h-[230px] px-2 pt-4 pb-2 print:h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={chartData} barGap={3} barCategoryGap="32%">
-                        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#27272a" />
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={CT.grid} />
                         <XAxis
                           dataKey="period"
-                          tick={{ fill: "#d4d4d8", fontSize: 12 }}
-                          axisLine={{ stroke: "#3f3f46" }}
+                          tick={{ fill: CT.axisTickFill, fontSize: 12 }}
+                          axisLine={{ stroke: CT.axisLine }}
                           tickLine={false}
                         />
                         <YAxis
-                          tick={{ fill: "#d4d4d8", fontSize: 12 }}
-                          axisLine={{ stroke: "#3f3f46" }}
+                          tick={{ fill: CT.axisTickFill, fontSize: 12 }}
+                          axisLine={{ stroke: CT.axisLine }}
                           tickLine={false}
                           tickFormatter={(v) => compactNum(v).replace(/[A-Za-z]+$/, "")}
                           width={48}
                         />
                         <Tooltip
-                          contentStyle={tooltipStyle}
-                          itemStyle={{ color: "#e4e4e7" }}
-                          labelStyle={{ color: "#a1a1aa" }}
+                          contentStyle={CT.tooltipStyle}
+                          itemStyle={{ color: CT.itemColor }}
+                          labelStyle={{ color: CT.labelColor }}
                           formatter={(v) => fmtCurrency(v as number, cur)}
-                          cursor={{ fill: "rgba(255,255,255,0.03)" }}
+                          cursor={{ fill: CT.cursorFill }}
                         />
                         <Legend
-                          wrapperStyle={{ fontSize: 10, color: "#d4d4d8", paddingTop: 8 }}
+                          wrapperStyle={{ fontSize: 10, color: CT.legendColor, paddingTop: 8 }}
                           iconType="square"
                           iconSize={7}
                         />
@@ -1090,27 +1103,27 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
                             <stop offset="95%" stopColor={P.cash} stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#27272a" />
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={CT.grid} />
                         <XAxis
                           dataKey="period"
-                          tick={{ fill: "#d4d4d8", fontSize: 12 }}
-                          axisLine={{ stroke: "#3f3f46" }}
+                          tick={{ fill: CT.axisTickFill, fontSize: 12 }}
+                          axisLine={{ stroke: CT.axisLine }}
                           tickLine={false}
                           padding={{ left: 30, right: 30 }}
                         />
                         <YAxis
-                          tick={{ fill: "#d4d4d8", fontSize: 12 }}
-                          axisLine={{ stroke: "#3f3f46" }}
+                          tick={{ fill: CT.axisTickFill, fontSize: 12 }}
+                          axisLine={{ stroke: CT.axisLine }}
                           tickLine={false}
                           tickFormatter={(v) => compactNum(v).replace(/[A-Za-z]+$/, "")}
                           width={48}
                         />
                         <Tooltip
-                          contentStyle={tooltipStyle}
-                          itemStyle={{ color: "#e4e4e7" }}
-                          labelStyle={{ color: "#a1a1aa" }}
+                          contentStyle={CT.tooltipStyle}
+                          itemStyle={{ color: CT.itemColor }}
+                          labelStyle={{ color: CT.labelColor }}
                           formatter={(v) => fmtCurrency(v as number, cur)}
-                          cursor={{ stroke: "rgba(255,255,255,0.06)" }}
+                          cursor={{ stroke: CT.cursorStroke }}
                         />
                         <Line
                           type="monotone"
@@ -1148,30 +1161,30 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
                             </feMerge>
                           </filter>
                         </defs>
-                        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#27272a" />
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={CT.grid} />
                         <XAxis
                           dataKey="period"
-                          tick={{ fill: "#d4d4d8", fontSize: 12 }}
-                          axisLine={{ stroke: "#3f3f46" }}
+                          tick={{ fill: CT.axisTickFill, fontSize: 12 }}
+                          axisLine={{ stroke: CT.axisLine }}
                           tickLine={false}
                           padding={{ left: 30, right: 30 }}
                         />
                         <YAxis
-                          tick={{ fill: "#d4d4d8", fontSize: 12 }}
-                          axisLine={{ stroke: "#3f3f46" }}
+                          tick={{ fill: CT.axisTickFill, fontSize: 12 }}
+                          axisLine={{ stroke: CT.axisLine }}
                           tickLine={false}
                           tickFormatter={(v) => `${v.toFixed(0)}%`}
                           width={44}
                         />
                         <Tooltip
-                          contentStyle={tooltipStyle}
-                          itemStyle={{ color: "#e4e4e7" }}
-                          labelStyle={{ color: "#a1a1aa" }}
+                          contentStyle={CT.tooltipStyle}
+                          itemStyle={{ color: CT.itemColor }}
+                          labelStyle={{ color: CT.labelColor }}
                           formatter={(v) => `${(v as number).toFixed(1)}%`}
-                          cursor={{ stroke: "rgba(255,255,255,0.06)" }}
+                          cursor={{ stroke: CT.cursorStroke }}
                         />
                         <Legend
-                          wrapperStyle={{ fontSize: 10, color: "#d4d4d8", paddingTop: 8 }}
+                          wrapperStyle={{ fontSize: 10, color: CT.legendColor, paddingTop: 8 }}
                           iconType="square"
                           iconSize={7}
                         />
@@ -1208,29 +1221,29 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
                   <div className="h-[230px] px-2 pt-4 pb-2 print:h-[200px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={chartData} barGap={4} barCategoryGap="30%">
-                        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#27272a" />
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={CT.grid} />
                         <XAxis
                           dataKey="period"
-                          tick={{ fill: "#d4d4d8", fontSize: 12 }}
-                          axisLine={{ stroke: "#3f3f46" }}
+                          tick={{ fill: CT.axisTickFill, fontSize: 12 }}
+                          axisLine={{ stroke: CT.axisLine }}
                           tickLine={false}
                         />
                         <YAxis
-                          tick={{ fill: "#d4d4d8", fontSize: 12 }}
-                          axisLine={{ stroke: "#3f3f46" }}
+                          tick={{ fill: CT.axisTickFill, fontSize: 12 }}
+                          axisLine={{ stroke: CT.axisLine }}
                           tickLine={false}
                           tickFormatter={(v) => compactNum(v).replace(/[A-Za-z]+$/, "")}
                           width={48}
                         />
                         <Tooltip
-                          contentStyle={tooltipStyle}
-                          itemStyle={{ color: "#e4e4e7" }}
-                          labelStyle={{ color: "#a1a1aa" }}
+                          contentStyle={CT.tooltipStyle}
+                          itemStyle={{ color: CT.itemColor }}
+                          labelStyle={{ color: CT.labelColor }}
                           formatter={(v) => fmtCurrency(v as number, cur)}
-                          cursor={{ fill: "rgba(255,255,255,0.03)" }}
+                          cursor={{ fill: CT.cursorFill }}
                         />
                         <Legend
-                          wrapperStyle={{ fontSize: 10, color: "#d4d4d8", paddingTop: 8 }}
+                          wrapperStyle={{ fontSize: 10, color: CT.legendColor, paddingTop: 8 }}
                           iconType="square"
                           iconSize={7}
                         />
@@ -1274,7 +1287,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
                   <div className="overflow-x-auto px-1 pb-2 pt-4">
                     <Table>
                       <TableHeader>
-                        <TableRow className="border-zinc-800/40 hover:bg-transparent">
+                        <TableRow className="border-zinc-200 dark:border-zinc-800/40 hover:bg-transparent">
                           {[
                             "Period",
                             "Revenue",
@@ -1304,9 +1317,9 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
                         {data.metrics.map((m, i) => (
                           <TableRow
                             key={i}
-                            className="border-zinc-800/30 hover:bg-white/[0.015] transition-colors"
+                            className="border-zinc-200 dark:border-zinc-800/30 hover:bg-zinc-100/60 dark:hover:bg-white/[0.015] transition-colors"
                           >
-                            <TableCell className="whitespace-nowrap text-sm font-light text-zinc-300">
+                            <TableCell className="whitespace-nowrap text-sm font-light text-zinc-700 dark:text-zinc-300">
                               {m.period}
                               {m.is_projected && (
                                 <span className="ml-2 rounded px-1 py-0.5 text-[9px] uppercase tracking-wider bg-amber-500/10 text-amber-400/80 border border-amber-500/15">
@@ -1314,10 +1327,10 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
                                 </span>
                               )}
                             </TableCell>
-                            <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">
+                            <TableCell className="text-right text-sm tabular-nums text-zinc-700 dark:text-zinc-300 font-light">
                               {fmtCurrency(m.revenue, cur)}
                             </TableCell>
-                            <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">
+                            <TableCell className="text-right text-sm tabular-nums text-zinc-700 dark:text-zinc-300 font-light">
                               {fmtPct(m.gross_margin_pct)}
                             </TableCell>
                             <TableCell
@@ -1344,10 +1357,10 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
                             >
                               {fmtCurrency(m.net_income, cur)}
                             </TableCell>
-                            <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">
+                            <TableCell className="text-right text-sm tabular-nums text-zinc-700 dark:text-zinc-300 font-light">
                               {fmtCurrency(m.cash_balance, cur)}
                             </TableCell>
-                            <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">
+                            <TableCell className="text-right text-sm tabular-nums text-zinc-700 dark:text-zinc-300 font-light">
                               {fmtCurrency(m.monthly_burn_rate, cur)}
                             </TableCell>
                             <TableCell
@@ -1358,13 +1371,13 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
                             >
                               {fmtMonths(m.implied_runway_months)}
                             </TableCell>
-                            <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">
+                            <TableCell className="text-right text-sm tabular-nums text-zinc-700 dark:text-zinc-300 font-light">
                               {fmtCurrency(m.cac, cur)}
                             </TableCell>
-                            <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">
+                            <TableCell className="text-right text-sm tabular-nums text-zinc-700 dark:text-zinc-300 font-light">
                               {fmtCurrency(m.ltv, cur)}
                             </TableCell>
-                            <TableCell className="text-right text-sm tabular-nums text-zinc-300 font-light">
+                            <TableCell className="text-right text-sm tabular-nums text-zinc-700 dark:text-zinc-300 font-light">
                               {fmtRatio(m.ltv_to_cac_ratio)}
                             </TableCell>
                           </TableRow>

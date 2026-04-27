@@ -49,12 +49,13 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  /* Eggshell off-white (#FAF9F6) */
+  --background: oklch(0.977 0.003 84);
+  --foreground: oklch(0.129 0.015 252);
+  --card: oklch(0.997 0.001 84);
+  --card-foreground: oklch(0.129 0.015 252);
+  --popover: oklch(0.997 0.001 84);
+  --popover-foreground: oklch(0.129 0.015 252);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
@@ -126,7 +127,44 @@
   }
   html {
     @apply font-sans;
+    scrollbar-width: thin;
+    scrollbar-color: #c4c4c4 #f0ede8;
   }
+  html.dark {
+    scrollbar-color: #333333 #0a0a0a;
+  }
+}
+
+/* ── Custom scrollbars ────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f0ede8;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c4c4c4;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #333333;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #555555;
 }
 
 /* ── Print / Export Memo ──────────────────────────────────────────────────── */
