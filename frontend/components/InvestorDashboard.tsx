@@ -672,6 +672,47 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
   const chartMax = Math.max(1, ...chartData.flatMap((d) => [Math.abs(d.revenue ?? 0), Math.abs(d.ebitda ?? 0), Math.abs(d.cash ?? 0), Math.abs(d.net_income ?? 0)]));
   const unit = chartMax >= 1e9 ? `billions · ${cur}` : chartMax >= 1e6 ? `millions · ${cur}` : chartMax >= 1e3 ? `thousands · ${cur}` : cur;
 
+  // ── DCF constants & derivations (mirrors ValuationView) ──────────────────
+  const E_TAX = 0.25, E_CAPEX = 0.035, E_WC = 0.020, E_TG = 0.025;
+  const E_RF = 0.045, E_BETA = 1.20, E_RPM = 0.055, E_RPS = 0.020;
+  const E_RPCP = 0.015, E_RPC = 0.005, E_KD = 0.060;
+  const E_DW = 0.30, E_EW = 0.70;
+  const ebitdaV  = latest?.ebitda ?? 0;
+  const revenueV = latest?.revenue ?? 0;
+  const cashV    = latest?.cash_balance ?? 0;
+  const estTaxV  = ebitdaV > 0 ? ebitdaV * E_TAX : 0;
+  const estCapexV = revenueV * E_CAPEX;
+  const estWCV   = revenueV * E_WC;
+  const fcffV    = ebitdaV - estTaxV - estCapexV - estWCV;
+  const keV      = E_RF + E_BETA * E_RPM + E_RPS + E_RPCP + E_RPC;
+  const waccV    = E_DW * E_KD * (1 - E_TAX) + E_EW * keV;
+  const hasDataV = fcffV > 0 && waccV > E_TG;
+  const evV      = hasDataV ? fcffV / (waccV - E_TG) : null;
+  const fmvV     = evV != null ? evV + cashV : null;
+  const cumPostTaxV   = ebitdaV - estTaxV;
+  const cumPostCapexV = cumPostTaxV - estCapexV;
+  const wfData = [
+    { name: "EBITDA", spacer: 0,                        bar: ebitdaV,          isNeg: false, isResult: false },
+    { name: "Tax",    spacer: cumPostTaxV,               bar: estTaxV,          isNeg: true,  isResult: false },
+    { name: "CAPEX",  spacer: cumPostCapexV,             bar: estCapexV,        isNeg: true,  isResult: false },
+    { name: "Δ WC",   spacer: cumPostCapexV - estWCV,    bar: estWCV,           isNeg: true,  isResult: false },
+    { name: "FCFF",   spacer: 0,                        bar: Math.abs(fcffV),  isNeg: fcffV < 0, isResult: true },
+  ];
+  const waccRows = [
+    { label: "Risk-free rate",        val: `${(E_RF * 100).toFixed(1)}%`,   hi: false },
+    { label: "Beta",                  val: E_BETA.toFixed(2),               hi: false },
+    { label: "Equity risk premium",   val: `${(E_RPM * 100).toFixed(1)}%`,  hi: false },
+    { label: "Size premium",          val: `${(E_RPS * 100).toFixed(1)}%`,  hi: false },
+    { label: "Company-specific risk", val: `${(E_RPCP * 100).toFixed(1)}%`, hi: false },
+    { label: "Country risk",          val: `${(E_RPC * 100).toFixed(1)}%`,  hi: false },
+    { label: "Cost of equity",        val: `${(keV * 100).toFixed(2)}%`,    hi: true  },
+    { label: "Cost of debt",          val: `${(E_KD * 100).toFixed(1)}%`,   hi: false },
+    { label: "Tax rate",              val: `${(E_TAX * 100).toFixed(0)}%`,  hi: false },
+    { label: "Debt weight",           val: `${(E_DW * 100).toFixed(0)}%`,   hi: false },
+    { label: "WACC",                  val: `${(waccV * 100).toFixed(2)}%`,  hi: true  },
+    { label: "Terminal growth",       val: `${(E_TG * 100).toFixed(1)}%`,   hi: false },
+  ];
+
   const secPad: React.CSSProperties = { backgroundColor: bg, padding: "0 48px 28px" };
   const panelStyle = (extra?: React.CSSProperties): React.CSSProperties => ({ borderRadius: 12, border: `1px solid ${brd}`, backgroundColor: card, overflow: "hidden", ...extra });
   const panelHeader = (title: string, sub?: string) => (
@@ -692,7 +733,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
 
   const kpiCards = [
     { label: "Revenue",      value: fmtC(latest?.revenue),       sub: latest?.period },
-    { label: "EBITDA",       value: fmtC(latest?.ebitda),         sub: latest?.period, color: (latest?.ebitda ?? 0) >= 0 ? "#6ee7b7" : "#fca5a5" },
+    { label: "EBITDA",       value: fmtC(latest?.ebitda),         sub: latest?.period, color: (latest?.ebitda ?? 0) >= 0 ? (isDark ? "#6ee7b7" : "#15803d") : (isDark ? "#fca5a5" : "#b91c1c") },
     { label: "Cash Balance", value: fmtC(latest?.cash_balance),   sub: latest?.period },
     { label: "Runway",       value: fmtMoE(latest?.implied_runway_months), sub: "implied" },
   ];
@@ -828,8 +869,8 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
                   <td style={{ padding: "6px 12px", color: txt, fontWeight: 300 }}>{m.period}{m.is_projected && <span style={{ marginLeft: 6, fontSize: 8, padding: "1px 4px", borderRadius: 3, backgroundColor: "rgba(245,158,11,0.1)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.2)" }}>proj</span>}</td>
                   <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.revenue)}</td>
                   <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtPctE(m.gross_margin_pct)}</td>
-                  <td style={{ padding: "6px 12px", textAlign: "right", color: m.ebitda == null ? dim : m.ebitda >= 0 ? "#6ee7b7" : "#fca5a5", fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.ebitda)}</td>
-                  <td style={{ padding: "6px 12px", textAlign: "right", color: m.net_income == null ? dim : m.net_income >= 0 ? "#6ee7b7" : "#fca5a5", fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.net_income)}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", color: m.ebitda == null ? dim : m.ebitda >= 0 ? (isDark ? "#6ee7b7" : "#15803d") : (isDark ? "#fca5a5" : "#b91c1c"), fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.ebitda)}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", color: m.net_income == null ? dim : m.net_income >= 0 ? (isDark ? "#6ee7b7" : "#15803d") : (isDark ? "#fca5a5" : "#b91c1c"), fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.net_income)}</td>
                   <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.cash_balance)}</td>
                   <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.monthly_burn_rate)}</td>
                   <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtMoE(m.implied_runway_months)}</td>
@@ -840,6 +881,97 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* ── Section 5: Valuation Analysis — FCFF Waterfall + WACC Engine ── */}
+      <div className="export-section" style={{ ...secPad, paddingTop: 28 }}>
+        {sectionLabel("Valuation Analysis — DCF")}
+        <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 16 }}>
+
+          {/* FCFF Waterfall */}
+          <div style={panelStyle()}>
+            {panelHeader("FCFF Waterfall Bridge", `${latest?.period ?? "latest period"} · derived assumptions`)}
+            <div style={{ height: 230, padding: "8px 4px 4px" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={wfData} barCategoryGap="28%">
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={cGrid} />
+                  <XAxis dataKey="name" tick={{ fill: cAxis, fontSize: 11 }} axisLine={{ stroke: cLine }} tickLine={false} />
+                  <YAxis tick={{ fill: cAxis, fontSize: 11 }} axisLine={{ stroke: cLine }} tickLine={false} tickFormatter={(v) => compactNum(v).replace(/[A-Za-z]+$/, "")} width={48} />
+                  <Tooltip contentStyle={tStyle} itemStyle={{ color: cItem }} labelStyle={{ color: cLbl }}
+                    formatter={(v, name) => name === "spacer" ? null : [fmtC(v as number), ""]}
+                    cursor={{ fill: cCur }}
+                  />
+                  <Bar dataKey="spacer" stackId="wf" fill="transparent" legendType="none" isAnimationActive={false} />
+                  <Bar dataKey="bar" stackId="wf" name="Value" radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                    {wfData.map((entry, i) => (
+                      <Cell key={i} fill={entry.isResult ? (entry.isNeg ? "#fca5a5" : "#6ee7b7") : entry.isNeg ? "#fca5a5" : "#a1a1aa"} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <p style={{ fontSize: 9, color: dim, padding: "0 16px 12px", lineHeight: 1.7, margin: 0 }}>
+              FCFF = EBITDA − est. taxes ({(E_TAX * 100).toFixed(0)}%) − est. CAPEX ({(E_CAPEX * 100).toFixed(1)}% rev.) − Δ working capital ({(E_WC * 100).toFixed(1)}% rev.)
+            </p>
+          </div>
+
+          {/* WACC Engine */}
+          <div style={panelStyle({ padding: "14px 16px 16px" })}>
+            <p style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", color: muted, margin: "0 0 10px" }}>Cost of Capital Engine</p>
+            <div style={{ borderRadius: 8, border: `1px solid ${brd}`, backgroundColor: bg, padding: "8px 12px", marginBottom: 6 }}>
+              <p style={{ fontSize: 8, letterSpacing: "0.18em", textTransform: "uppercase", color: dim, margin: "0 0 4px" }}>WACC</p>
+              <p style={{ fontSize: 10, color: txt, fontFamily: "monospace", margin: 0 }}>WACC = [D/V · Kd(1−t)] + [E/V · Ke]</p>
+            </div>
+            <div style={{ borderRadius: 8, border: `1px solid ${brd}`, backgroundColor: bg, padding: "8px 12px", marginBottom: 10 }}>
+              <p style={{ fontSize: 8, letterSpacing: "0.18em", textTransform: "uppercase", color: dim, margin: "0 0 4px" }}>Cost of Equity · CAPM</p>
+              <p style={{ fontSize: 10, color: txt, fontFamily: "monospace", margin: 0 }}>Ke = rf + (β × rpm) + rps + rpcp + rpc</p>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {waccRows.map((row) => (
+                <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "3px 8px", borderRadius: 6, backgroundColor: row.hi ? (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)") : "transparent", border: row.hi ? `1px solid ${brd}` : "none" }}>
+                  <span style={{ fontSize: 10, color: dim }}>{row.label}</span>
+                  <span style={{ fontSize: 11, fontFamily: "monospace", fontWeight: row.hi ? 600 : 400, color: row.hi ? txt : dim }}>{row.val}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Value Conclusion */}
+        <div style={{ ...panelStyle(), marginTop: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 16px 12px" }}>
+            <p style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", color: muted, margin: 0 }}>Value Conclusion</p>
+            <div style={{ flex: 1, height: 1, background: `linear-gradient(to right, ${brd}, transparent)` }} />
+            <span style={{ fontSize: 8, padding: "2px 8px", borderRadius: 6, backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", color: dim, border: `1px solid ${brd}` }}>Base Scenario</span>
+          </div>
+          {hasDataV && evV != null && fmvV != null ? (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, padding: "0 16px 16px" }}>
+              <div style={{ borderRadius: 12, border: `1px solid ${brd}`, backgroundColor: isDark ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.02)", padding: 16 }}>
+                <p style={{ fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: dim, margin: 0 }}>Norm. FCFF</p>
+                <div style={{ height: 1, width: 32, background: `linear-gradient(to right, ${dim}, transparent)`, margin: "10px 0" }} />
+                <p style={{ fontSize: 26, fontWeight: 300, color: isDark ? "#d4d4d8" : "#374151", margin: 0, lineHeight: 1 }}>{fmtC(fcffV)}</p>
+                <p style={{ fontSize: 9, color: dim, margin: "4px 0 0" }}>{latest?.period}</p>
+              </div>
+              <div style={{ borderRadius: 12, border: "1px solid rgba(99,102,241,0.25)", backgroundColor: "rgba(99,102,241,0.05)", padding: 16 }}>
+                <p style={{ fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: dim, margin: 0 }}>Enterprise Value</p>
+                <div style={{ height: 1, width: 32, background: "linear-gradient(to right, rgba(99,102,241,0.5), transparent)", margin: "10px 0" }} />
+                <p style={{ fontSize: 26, fontWeight: 300, color: txt, margin: 0, lineHeight: 1 }}>{fmtC(evV)}</p>
+                <p style={{ fontSize: 9, fontFamily: "monospace", color: dim, margin: "4px 0 0" }}>WACC {(waccV * 100).toFixed(2)}% · g {(E_TG * 100).toFixed(1)}%</p>
+              </div>
+              <div style={{ borderRadius: 12, border: "1px solid rgba(16,185,129,0.25)", backgroundColor: "rgba(16,185,129,0.05)", padding: 16 }}>
+                <p style={{ fontSize: 9, letterSpacing: "0.18em", textTransform: "uppercase", color: dim, margin: 0 }}>FMV of Equity</p>
+                <div style={{ height: 1, width: 32, background: "linear-gradient(to right, rgba(16,185,129,0.5), transparent)", margin: "10px 0" }} />
+                <p style={{ fontSize: 26, fontWeight: 300, color: isDark ? "#6ee7b7" : "#15803d", margin: 0, lineHeight: 1 }}>{fmtC(fmvV)}</p>
+                <p style={{ fontSize: 9, fontFamily: "monospace", color: dim, margin: "4px 0 0" }}>EV + cash · no debt assumed</p>
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: "24px 16px 24px", textAlign: "center" }}>
+              <p style={{ fontSize: 12, fontWeight: 300, color: dim, margin: 0 }}>Insufficient data to compute DCF valuation.</p>
+              <p style={{ fontSize: 10, color: isDark ? "#52525b" : "#9ca3af", margin: "4px 0 0" }}>Requires positive EBITDA and revenue in the extracted metrics.</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -866,8 +998,7 @@ async function exportPdf(
   const pdf = new jsPDF("l", "mm", "a4");
   const pageWidth = 297;
   const pageHeight = 210;
-  const margin = 10;
-  let currentY = margin;
+  let currentY = 0;
   let firstSection = true;
 
   for (let i = 0; i < sections.length; i++) {
@@ -875,14 +1006,14 @@ async function exportPdf(
     onProgress(`Capturing section ${i + 1} of ${sections.length}…`);
     const imgData = await toPng(section, { backgroundColor: bgColor, pixelRatio: 2 });
     const imgProps = pdf.getImageProperties(imgData);
-    const scaledHeight = (imgProps.height * (pageWidth - margin * 2)) / imgProps.width;
+    const scaledHeight = (imgProps.height * pageWidth) / imgProps.width;
 
-    if (!firstSection && currentY + scaledHeight > pageHeight - margin && currentY !== margin) {
+    if (!firstSection && currentY + scaledHeight > pageHeight && currentY !== 0) {
       pdf.addPage();
-      currentY = margin;
+      currentY = 0;
     }
-    pdf.addImage(imgData, "PNG", margin, currentY, pageWidth - margin * 2, scaledHeight);
-    currentY += scaledHeight + 5;
+    pdf.addImage(imgData, "PNG", 0, currentY, pageWidth, scaledHeight);
+    currentY += scaledHeight;
     firstSection = false;
   }
 
