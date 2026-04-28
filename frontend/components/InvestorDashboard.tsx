@@ -819,7 +819,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
   ];
 
   return (
-    <div style={{ width: "100%", overflow: "hidden", backgroundColor: bg, fontFamily: "var(--font-geist-sans, system-ui, sans-serif)" }}>
+    <div style={{ width: 1400, backgroundColor: bg, fontFamily: "var(--font-geist-sans, system-ui, sans-serif)" }}>
 
       {/* ── Section 1: Header + KPI grid ── */}
       <div className="export-section w-full" style={{ ...secPad, paddingTop: 36, paddingBottom: 28 }}>
@@ -1137,10 +1137,10 @@ function ExportModal({ data, fileName, tearSheetRef, exportTheme, onExportThemeC
 
             {/* Live preview */}
             <div
-              className="mt-5 rounded-xl border border-zinc-200 dark:border-zinc-800/50 w-full overflow-y-auto overflow-x-hidden flex justify-center"
+              className="mt-5 rounded-xl border border-zinc-200 dark:border-zinc-800/50 w-full overflow-y-auto overflow-x-hidden flex justify-center items-start pt-8"
               style={{ maxHeight: "60vh", backgroundColor: bgColor }}
             >
-              <div className="shrink-0 origin-top scale-[0.64] w-[1120px] max-w-[1120px] flex flex-col" style={{ pointerEvents: "none", userSelect: "none" }}>
+              <div className="w-[1400px] origin-top scale-[0.6] shrink-0 flex flex-col gap-8" style={{ pointerEvents: "none", userSelect: "none" }}>
                 <ExportContent data={data} theme={exportTheme} />
                 <MotionConfig reducedMotion="always">
                   <div
