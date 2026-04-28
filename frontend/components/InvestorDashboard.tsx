@@ -459,7 +459,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
             {sectionHeader}
           </h2>
         )}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[3fr_2fr]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[3fr_2fr] items-start pb-8">
 
         {/* Section A — FCFF Waterfall */}
         <motion.div variants={fadeUp}>
@@ -525,10 +525,10 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
         </motion.div>
 
         {/* Section B — WACC Engine */}
-        <motion.div variants={fadeUp}>
+        <motion.div variants={fadeUp} className={isExport ? "mb-8" : ""}>
           <GlassPanel className={`${isExport ? "h-auto" : "h-full"} break-inside-avoid`}>
             <PanelHeader title="Cost of Capital Engine" />
-            <div className={isExport ? "px-5 pb-5 pt-1" : "px-5 pb-5 pt-1 space-y-3"}>
+            <div className={isExport ? "px-5 pb-8 pt-1" : "px-5 pb-5 pt-1 space-y-3"}>
 
               {!isExport && (
                 <>
@@ -628,7 +628,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
           </div>
 
           {/* ── Export: Stress Case ── */}
-          <div className="export-section w-full mt-8 pb-12">
+          <div className="export-section w-full mt-8 pb-6 mb-8">
             <GlassPanel>
               <div className="px-5 pt-5 pb-3">
                 <p className="text-xs uppercase tracking-widest text-zinc-500">Stress Case Assumptions</p>
