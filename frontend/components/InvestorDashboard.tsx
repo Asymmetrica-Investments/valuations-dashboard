@@ -58,7 +58,7 @@ const kpiStagger = {
 // ── Chart palette (hardcoded hex — SVG can't resolve CSS vars) ─────────────
 const P = {
   revenue: "#a1a1aa",       // zinc-400
-  ebitdaPos: "#059669",     // emerald-600 — high-contrast, theme-bridging
+  ebitdaPos: "#00C875",     // brand neon-green
   ebitdaNeg: "#fca5a5",     // red-300
   cash: "#a5b4fc",          // indigo-300
   grid: "rgba(255,255,255,0.04)",
@@ -106,13 +106,13 @@ function runwayClass(mo: number | null | undefined) {
   if (mo < 6) return "text-red-600 dark:text-red-400";
   if (mo < 12) return "text-amber-600 dark:text-amber-400";
   if (mo < 18) return "text-yellow-600 dark:text-yellow-400";
-  return "text-emerald-700 dark:text-emerald-400";
+  return "text-[#00C875]";
 }
 function runwayIcon(mo: number | null | undefined) {
   if (mo == null) return <Minus className="size-4 text-zinc-500" />;
   if (mo < 6) return <TrendingDown className="size-4 text-red-600 dark:text-red-400" />;
   if (mo < 18) return <Minus className="size-4 text-amber-600 dark:text-amber-400" />;
-  return <TrendingUp className="size-4 text-emerald-700 dark:text-emerald-400" />;
+  return <TrendingUp className="size-4 text-[#00C875]" />;
 }
 
 // ── PremiumCard: glassmorphism + mouse-tracking border spotlight ──────────────
@@ -504,7 +504,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                         key={i}
                         fill={
                           entry.isResult
-                            ? entry.isNeg ? "#fca5a5" : "#059669"
+                            ? entry.isNeg ? "#fca5a5" : "#00C875"
                             : entry.isNeg
                             ? "#fca5a5"
                             : "#a1a1aa"
@@ -605,7 +605,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                     <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[40px]" />
                     <p className="relative text-[10px] uppercase tracking-[0.18em] text-zinc-500">FMV of Equity</p>
                     <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-emerald-700/50 to-transparent" />
-                    <p className="relative mt-3 text-4xl font-light text-emerald-700 dark:text-emerald-400 tabular-nums">
+                    <p className="relative mt-3 text-4xl font-light text-[#00C875] tabular-nums">
                       <NumberTicker value={equityBase} format={currencyFmt} delay={0.4} />
                     </p>
                     <p className="relative mt-1 font-mono text-[10px] text-zinc-500">EV + cash · no debt assumed</p>
@@ -653,7 +653,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                     <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[40px]" />
                     <p className="relative text-[10px] uppercase tracking-[0.18em] text-zinc-500">FMV of Equity</p>
                     <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-emerald-700/50 to-transparent" />
-                    <p className="relative mt-3 text-4xl font-light text-emerald-700 dark:text-emerald-400 tabular-nums">
+                    <p className="relative mt-3 text-4xl font-light text-[#00C875] tabular-nums">
                       <NumberTicker value={equityStress} format={currencyFmt} delay={0.4} />
                     </p>
                     <p className="relative mt-1 font-mono text-[10px] text-zinc-500">EV + cash · no debt assumed</p>
@@ -724,7 +724,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                   <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[40px]" />
                   <p className="relative text-[10px] uppercase tracking-[0.18em] text-zinc-500">FMV of Equity</p>
                   <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-emerald-700/50 to-transparent" />
-                  <p className="relative mt-3 text-4xl font-light text-emerald-700 dark:text-emerald-400 tabular-nums">
+                  <p className="relative mt-3 text-4xl font-light text-[#00C875] tabular-nums">
                     <NumberTicker value={equityValue} format={currencyFmt} delay={0.4} />
                   </p>
                   <p className="relative mt-1 font-mono text-[10px] text-zinc-500">EV + cash · no debt assumed</p>
@@ -806,7 +806,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
 
   const kpiCards = [
     { label: "Revenue",      value: fmtC(latest?.revenue),       sub: latest?.period },
-    { label: "EBITDA",       value: fmtC(latest?.ebitda),         sub: latest?.period, color: (latest?.ebitda ?? 0) >= 0 ? (isDark ? "#34d399" : "#047857") : (isDark ? "#fca5a5" : "#b91c1c") },
+    { label: "EBITDA",       value: fmtC(latest?.ebitda),         sub: latest?.period, color: (latest?.ebitda ?? 0) >= 0 ? "#00C875" : (isDark ? "#fca5a5" : "#b91c1c") },
     { label: "Cash Balance", value: fmtC(latest?.cash_balance),   sub: latest?.period },
     { label: "Runway",       value: fmtMoE(latest?.implied_runway_months), sub: "implied" },
   ];
@@ -949,8 +949,8 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
                   <td style={{ padding: "6px 12px", color: txt, fontWeight: 300 }}>{m.period}{m.is_projected && <span style={{ marginLeft: 6, fontSize: 8, padding: "1px 4px", borderRadius: 3, backgroundColor: "rgba(245,158,11,0.1)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.2)" }}>proj</span>}</td>
                   <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.revenue)}</td>
                   <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtPctE(m.gross_margin_pct)}</td>
-                  <td style={{ padding: "6px 12px", textAlign: "right", color: m.ebitda == null ? dim : m.ebitda >= 0 ? (isDark ? "#34d399" : "#047857") : (isDark ? "#fca5a5" : "#b91c1c"), fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.ebitda)}</td>
-                  <td style={{ padding: "6px 12px", textAlign: "right", color: m.net_income == null ? dim : m.net_income >= 0 ? (isDark ? "#34d399" : "#047857") : (isDark ? "#fca5a5" : "#b91c1c"), fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.net_income)}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", color: m.ebitda == null ? dim : m.ebitda >= 0 ? "#00C875" : (isDark ? "#fca5a5" : "#b91c1c"), fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.ebitda)}</td>
+                  <td style={{ padding: "6px 12px", textAlign: "right", color: m.net_income == null ? dim : m.net_income >= 0 ? "#00C875" : (isDark ? "#fca5a5" : "#b91c1c"), fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.net_income)}</td>
                   <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.cash_balance)}</td>
                   <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtC(m.monthly_burn_rate)}</td>
                   <td style={{ padding: "6px 12px", textAlign: "right", color: txt, fontWeight: 300, fontVariantNumeric: "tabular-nums" }}>{fmtMoE(m.implied_runway_months)}</td>
@@ -1361,7 +1361,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
                     latest?.ebitda == null
                       ? ""
                       : latest.ebitda >= 0
-                      ? "text-emerald-700 dark:text-emerald-400"
+                      ? "text-[#00C875]"
                       : "text-red-600 dark:text-red-400"
                   }
                 />
@@ -1684,7 +1684,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
                                 m.ebitda == null
                                   ? "text-zinc-600"
                                   : m.ebitda >= 0
-                                  ? "text-emerald-700 dark:text-emerald-400"
+                                  ? "text-[#00C875]"
                                   : "text-red-600 dark:text-red-400/80"
                               )}
                             >
@@ -1696,7 +1696,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
                                 m.net_income == null
                                   ? "text-zinc-600"
                                   : m.net_income >= 0
-                                  ? "text-emerald-700 dark:text-emerald-400"
+                                  ? "text-[#00C875]"
                                   : "text-red-600 dark:text-red-400/80"
                               )}
                             >
