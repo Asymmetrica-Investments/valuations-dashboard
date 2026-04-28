@@ -1047,6 +1047,21 @@ function ExportModal({ data, fileName, tearSheetRef, exportTheme, onExportThemeC
 
   const bgColor = exportTheme === "dark" ? "#09090b" : "#FAF9F6";
 
+  const cur = data.reporting_currency;
+  const latest: FinancialMetrics | undefined =
+    [...data.metrics].reverse().find((m) => !m.is_projected) ??
+    data.metrics[data.metrics.length - 1];
+  const currencyFmt = useCallback(
+    (v: number) =>
+      new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: cur,
+        notation: "compact",
+        maximumFractionDigits: 1,
+      }).format(v),
+    [cur]
+  );
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
     window.addEventListener("keydown", onKey);
@@ -1122,11 +1137,27 @@ function ExportModal({ data, fileName, tearSheetRef, exportTheme, onExportThemeC
 
             {/* Live preview */}
             <div
-              className="mt-5 rounded-xl border border-zinc-200 dark:border-zinc-800/50 overflow-y-auto overflow-x-hidden"
+              className="mt-5 rounded-xl border border-zinc-200 dark:border-zinc-800/50 overflow-y-auto overflow-x-hidden flex justify-center items-start"
               style={{ maxHeight: "60vh", backgroundColor: bgColor }}
             >
-              <div style={{ zoom: 0.64, pointerEvents: "none", userSelect: "none" }}>
+              <div style={{ zoom: 0.64, pointerEvents: "none", userSelect: "none", width: 1200, flexShrink: 0, transformOrigin: "top center" }}>
                 <ExportContent data={data} theme={exportTheme} />
+                <MotionConfig reducedMotion="always">
+                  <div
+                    className={exportTheme === "dark" ? "dark w-full" : "w-full"}
+                    style={{ backgroundColor: bgColor, padding: 0 }}
+                  >
+                    <ValuationView
+                      data={data}
+                      latest={latest}
+                      cur={cur}
+                      currencyFmt={currencyFmt}
+                      themeOverride={exportTheme}
+                      sectionHeader="Valuation Analysis"
+                      isExport={true}
+                    />
+                  </div>
+                </MotionConfig>
               </div>
             </div>
 
