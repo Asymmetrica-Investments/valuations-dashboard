@@ -728,10 +728,10 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
           </p>
         </div>
         <div style={{
-          fontSize: 18, fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.025em",
-          color: isDark ? "#ffffff" : "#111827",
+          fontSize: 14, fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.025em",
+          color: isDark ? "#9ca3af" : "#6b7280",
           borderBottom: `1px solid ${isDark ? "#1f2937" : "#d1d5db"}`,
-          paddingBottom: 8, marginBottom: 24, marginTop: 16,
+          paddingBottom: 8, marginBottom: 24, marginTop: 16, width: "100%",
         }}>
           Operating Metrics
         </div>
@@ -1681,7 +1681,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
             className={`export-section w-full mb-10${exportTheme === "dark" ? " dark" : ""}`}
             style={{ backgroundColor: exportTheme === "dark" ? "#09090b" : "#FAF9F6", padding: 0 }}
           >
-            <h2 className="text-lg font-normal uppercase tracking-wide text-gray-900 dark:text-white border-b border-gray-300 dark:border-gray-800 pb-2 mb-6 mt-4">
+            <h2 className="text-sm font-normal uppercase tracking-wide text-gray-500 dark:text-gray-400 border-b border-gray-300 dark:border-gray-800 pb-2 mb-6 mt-4 w-full">
               Valuation Analysis
             </h2>
             <ValuationView
