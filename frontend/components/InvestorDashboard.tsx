@@ -528,19 +528,23 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
         <motion.div variants={fadeUp}>
           <GlassPanel className="h-full break-inside-avoid">
             <PanelHeader title="Cost of Capital Engine" />
-            <div className="px-5 pb-5 pt-1 space-y-3">
+            <div className={isExport ? "px-5 pb-5 pt-1" : "px-5 pb-5 pt-1 space-y-3"}>
 
-              {/* WACC formula */}
-              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/60 px-4 py-3">
-                <p className="text-[9px] uppercase tracking-[0.18em] text-zinc-600 mb-2">WACC</p>
-                <WaccFormula />
-              </div>
+              {!isExport && (
+                <>
+                  {/* WACC formula */}
+                  <div className="rounded-xl border border-zinc-200 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/60 px-4 py-3">
+                    <p className="text-[9px] uppercase tracking-[0.18em] text-zinc-600 mb-2">WACC</p>
+                    <WaccFormula />
+                  </div>
 
-              {/* CAPM formula */}
-              <div className="rounded-xl border border-zinc-200 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/60 px-4 py-3">
-                <p className="text-[9px] uppercase tracking-[0.18em] text-zinc-600 mb-2">Cost of Equity · CAPM</p>
-                <CAPMFormula />
-              </div>
+                  {/* CAPM formula */}
+                  <div className="rounded-xl border border-zinc-200 dark:border-zinc-800/60 bg-zinc-50 dark:bg-zinc-900/60 px-4 py-3">
+                    <p className="text-[9px] uppercase tracking-[0.18em] text-zinc-600 mb-2">Cost of Equity · CAPM</p>
+                    <CAPMFormula />
+                  </div>
+                </>
+              )}
 
               {/* Input rows */}
               <div className="space-y-[2px]">
