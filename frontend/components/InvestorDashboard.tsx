@@ -213,7 +213,8 @@ function KpiCard({ label, rawValue, formatFn, sub, icon, valueClass }: KpiCardPr
           <div className="flex items-end justify-between gap-2">
             <span
               className={cn(
-                "text-5xl font-light tracking-tight text-zinc-900 dark:text-white leading-none",
+                "text-5xl font-light tracking-tight text-zinc-900 leading-none",
+                !valueClass && "dark:text-white",
                 valueClass
               )}
             >
