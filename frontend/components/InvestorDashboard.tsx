@@ -587,10 +587,10 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride }: Valuat
                   Norm. FCFF
                 </p>
                 <div className="mt-3 h-px w-8 bg-gradient-to-r from-zinc-700 to-transparent" />
-                <p className="mt-3 text-3xl font-light text-zinc-300 tabular-nums">
+                <p className="mt-3 text-4xl font-light text-zinc-900 dark:text-white tabular-nums">
                   <NumberTicker value={fcff} format={currencyFmt} />
                 </p>
-                <p className="mt-1 text-[10px] text-zinc-600">{latest?.period}</p>
+                <p className="mt-1 font-mono text-[10px] text-zinc-500">{latest?.period}</p>
               </div>
 
               {/* Enterprise Value */}
