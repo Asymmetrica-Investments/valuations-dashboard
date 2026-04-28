@@ -1361,7 +1361,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
                     latest?.ebitda == null
                       ? ""
                       : latest.ebitda >= 0
-                      ? "text-[#00C875]"
+                      ? "text-[#00C875] dark:text-[#00C875]"
                       : "text-red-600 dark:text-red-400"
                   }
                 />
