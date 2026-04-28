@@ -727,7 +727,14 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
             {data.reporting_period_type} · {cur} · {Math.round(data.confidence_score * 100)}% confidence
           </p>
         </div>
-        {sectionLabel("Operating Metrics")}
+        <div style={{
+          fontSize: 20, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.25em",
+          color: isDark ? "#ffffff" : "#111827",
+          borderBottom: `2px solid ${isDark ? "#374151" : "#d1d5db"}`,
+          paddingBottom: 12, marginBottom: 24, marginTop: 16,
+        }}>
+          Operating Metrics
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {kpiCards.map(({ label, value, sub, color }) => (
             <div key={label} style={panelStyle({ padding: "16px 20px" })}>
@@ -1674,6 +1681,9 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
             className={`export-section w-full mb-10${exportTheme === "dark" ? " dark" : ""}`}
             style={{ backgroundColor: exportTheme === "dark" ? "#09090b" : "#FAF9F6", padding: 0 }}
           >
+            <h2 className="text-xl font-extrabold uppercase tracking-widest text-gray-900 dark:text-white border-b-2 border-gray-300 dark:border-gray-700 pb-3 mb-6 mt-4 px-1">
+              Valuation Analysis
+            </h2>
             <ValuationView
               data={data}
               latest={latest}
