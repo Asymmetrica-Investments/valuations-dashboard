@@ -346,9 +346,10 @@ interface ValuationViewProps {
   currencyFmt: (v: number) => string;
   themeOverride?: "dark" | "light";
   sectionHeader?: string;
+  isExport?: boolean;
 }
 
-function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionHeader }: ValuationViewProps) {
+function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionHeader, isExport }: ValuationViewProps) {
   const [scenario, setScenario] = useState<"base" | "stress">("base");
   const CT = useChartTheme();
 
@@ -401,6 +402,19 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
   const hasEnoughData = fcff > 0 && wacc > TERMINAL_G;
   const ev          = hasEnoughData ? fcff / (wacc - TERMINAL_G) : null;
   const equityValue = ev != null ? ev + cash : null;
+
+  // Pre-compute both scenarios (used when isExport=true to show both side-by-side)
+  const keBase          = RF + BETA * RPM + RPS + RPCP + RPC_BASE + RPP;
+  const waccBase        = D_WEIGHT * KD * (1 - TAX_RATE) + E_WEIGHT * keBase;
+  const hasEnoughBase   = fcff > 0 && waccBase > TERMINAL_G;
+  const evBase          = hasEnoughBase ? fcff / (waccBase - TERMINAL_G) : null;
+  const equityBase      = evBase != null ? evBase + cash : null;
+
+  const keStress        = RF + BETA * RPM + RPS + RPCP + RPC_STRESS + RPP;
+  const waccStress      = D_WEIGHT * KD * (1 - TAX_RATE) + E_WEIGHT * keStress;
+  const hasEnoughStress = fcff > 0 && waccStress > TERMINAL_G;
+  const evStress        = hasEnoughStress ? fcff / (waccStress - TERMINAL_G) : null;
+  const equityStress    = evStress != null ? evStress + cash : null;
 
   // ── FCFF waterfall data ──────────��──────────────────────��─────────────────
   const cumPostTax   = ebitda - estTax;
@@ -558,99 +572,175 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
       </div>
 
       {/* ── Row 2: Value Conclusion ────────────────────────────────────────── */}
-      <motion.div variants={fadeUp} className="export-section w-full">
-        <GlassPanel>
-          {/* Header + scenario toggle */}
-          <div className="flex items-center justify-between px-5 pt-5 pb-4">
-            <div className="flex items-center gap-3">
-              <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-400">
-                Value Conclusion
-              </p>
-              <div className="h-px w-24 bg-gradient-to-r from-zinc-800 to-transparent" />
-            </div>
-            <div className="flex rounded-xl border border-zinc-200 dark:border-zinc-800/60 bg-zinc-100 dark:bg-zinc-900/60 p-[3px] gap-[3px]">
-              {(["base", "stress"] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setScenario(s)}
-                  className={cn(
-                    "rounded-[8px] px-3 py-1 text-[10px] uppercase tracking-widest transition-colors duration-200",
-                    scenario === s
-                      ? "bg-white dark:bg-zinc-700/60 text-zinc-800 dark:text-zinc-200 shadow-sm"
-                      : "text-zinc-500 dark:text-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-400"
-                  )}
-                >
-                  {s === "base" ? "Base" : "Stress"}
-                </button>
-              ))}
-            </div>
+      {isExport ? (
+        <>
+          {/* ── Export: Base Case ── */}
+          <div className="export-section w-full">
+            <GlassPanel>
+              <div className="px-5 pt-5 pb-3">
+                <p className="text-xs uppercase tracking-widest text-zinc-500">Base Case Assumptions</p>
+              </div>
+              {hasEnoughBase && evBase != null && equityBase != null ? (
+                <div className="grid grid-cols-1 gap-4 px-5 pb-6 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800/40 bg-zinc-50 dark:bg-zinc-900/30 p-5">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Norm. FCFF</p>
+                    <div className="mt-3 h-px w-8 bg-gradient-to-r from-zinc-700 to-transparent" />
+                    <p className="mt-3 text-4xl font-light text-zinc-900 dark:text-white tabular-nums">
+                      <NumberTicker value={fcff} format={currencyFmt} />
+                    </p>
+                    <p className="mt-1 font-mono text-[10px] text-zinc-500">{latest?.period}</p>
+                  </div>
+                  <div className="relative overflow-hidden rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.04] p-5">
+                    <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-indigo-500/10 blur-[40px]" />
+                    <p className="relative text-[10px] uppercase tracking-[0.18em] text-zinc-500">Enterprise Value</p>
+                    <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-indigo-700/50 to-transparent" />
+                    <p className="relative mt-3 text-4xl font-light text-zinc-900 dark:text-white tabular-nums">
+                      <NumberTicker value={evBase} format={currencyFmt} delay={0.2} />
+                    </p>
+                    <p className="relative mt-1 font-mono text-[10px] text-zinc-500">
+                      WACC {(waccBase * 100).toFixed(2)}% · g {(TERMINAL_G * 100).toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5">
+                    <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[40px]" />
+                    <p className="relative text-[10px] uppercase tracking-[0.18em] text-zinc-500">FMV of Equity</p>
+                    <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-emerald-700/50 to-transparent" />
+                    <p className="relative mt-3 text-4xl font-light text-emerald-700 dark:text-emerald-200 tabular-nums">
+                      <NumberTicker value={equityBase} format={currencyFmt} delay={0.4} />
+                    </p>
+                    <p className="relative mt-1 font-mono text-[10px] text-zinc-500">EV + cash · no debt assumed</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="px-5 pb-6">
+                  <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800/40 bg-zinc-50 dark:bg-zinc-900/30 p-8 text-center">
+                    <p className="text-sm font-light text-zinc-500">Insufficient data to compute DCF valuation.</p>
+                    <p className="mt-1 text-[11px] text-zinc-700">Requires positive EBITDA and revenue in the extracted metrics.</p>
+                  </div>
+                </div>
+              )}
+            </GlassPanel>
           </div>
 
-          {hasEnoughData && ev != null && equityValue != null ? (
-            <div className="grid grid-cols-1 gap-4 px-5 pb-6 sm:grid-cols-3">
-
-              {/* Normalised FCFF */}
-              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800/40 bg-zinc-50 dark:bg-zinc-900/30 p-5">
-                <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                  Norm. FCFF
-                </p>
-                <div className="mt-3 h-px w-8 bg-gradient-to-r from-zinc-700 to-transparent" />
-                <p className="mt-3 text-4xl font-light text-zinc-900 dark:text-white tabular-nums">
-                  <NumberTicker value={fcff} format={currencyFmt} />
-                </p>
-                <p className="mt-1 font-mono text-[10px] text-zinc-500">{latest?.period}</p>
+          {/* ── Export: Stress Case ── */}
+          <div className="export-section w-full mt-8">
+            <GlassPanel>
+              <div className="px-5 pt-5 pb-3">
+                <p className="text-xs uppercase tracking-widest text-zinc-500">Stress Case Assumptions</p>
               </div>
-
-              {/* Enterprise Value */}
-              <div className="relative overflow-hidden rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.04] p-5">
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-indigo-500/10 blur-[40px]"
-                />
-                <p className="relative text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                  Enterprise Value
+              {hasEnoughStress && evStress != null && equityStress != null ? (
+                <div className="grid grid-cols-1 gap-4 px-5 pb-6 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800/40 bg-zinc-50 dark:bg-zinc-900/30 p-5">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Norm. FCFF</p>
+                    <div className="mt-3 h-px w-8 bg-gradient-to-r from-zinc-700 to-transparent" />
+                    <p className="mt-3 text-4xl font-light text-zinc-900 dark:text-white tabular-nums">
+                      <NumberTicker value={fcff} format={currencyFmt} />
+                    </p>
+                    <p className="mt-1 font-mono text-[10px] text-zinc-500">{latest?.period}</p>
+                  </div>
+                  <div className="relative overflow-hidden rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.04] p-5">
+                    <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-indigo-500/10 blur-[40px]" />
+                    <p className="relative text-[10px] uppercase tracking-[0.18em] text-zinc-500">Enterprise Value</p>
+                    <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-indigo-700/50 to-transparent" />
+                    <p className="relative mt-3 text-4xl font-light text-zinc-900 dark:text-white tabular-nums">
+                      <NumberTicker value={evStress} format={currencyFmt} delay={0.2} />
+                    </p>
+                    <p className="relative mt-1 font-mono text-[10px] text-zinc-500">
+                      WACC {(waccStress * 100).toFixed(2)}% · g {(TERMINAL_G * 100).toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5">
+                    <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[40px]" />
+                    <p className="relative text-[10px] uppercase tracking-[0.18em] text-zinc-500">FMV of Equity</p>
+                    <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-emerald-700/50 to-transparent" />
+                    <p className="relative mt-3 text-4xl font-light text-emerald-700 dark:text-emerald-200 tabular-nums">
+                      <NumberTicker value={equityStress} format={currencyFmt} delay={0.4} />
+                    </p>
+                    <p className="relative mt-1 font-mono text-[10px] text-zinc-500">EV + cash · no debt assumed</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="px-5 pb-6">
+                  <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800/40 bg-zinc-50 dark:bg-zinc-900/30 p-8 text-center">
+                    <p className="text-sm font-light text-zinc-500">Insufficient data to compute DCF valuation.</p>
+                    <p className="mt-1 text-[11px] text-zinc-700">Requires positive EBITDA and revenue in the extracted metrics.</p>
+                  </div>
+                </div>
+              )}
+            </GlassPanel>
+          </div>
+        </>
+      ) : (
+        <motion.div variants={fadeUp} className="export-section w-full">
+          <GlassPanel>
+            {/* Header + scenario toggle */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-4">
+              <div className="flex items-center gap-3">
+                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-400">
+                  Value Conclusion
                 </p>
-                <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-indigo-700/50 to-transparent" />
-                <p className="relative mt-3 text-4xl font-light text-zinc-900 dark:text-white tabular-nums">
-                  <NumberTicker value={ev} format={currencyFmt} delay={0.2} />
-                </p>
-                <p className="relative mt-1 font-mono text-[10px] text-zinc-500">
-                  WACC {(wacc * 100).toFixed(2)}% · g {(TERMINAL_G * 100).toFixed(1)}%
-                </p>
+                <div className="h-px w-24 bg-gradient-to-r from-zinc-800 to-transparent" />
               </div>
-
-              {/* FMV of Equity */}
-              <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5">
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[40px]"
-                />
-                <p className="relative text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                  FMV of Equity
-                </p>
-                <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-emerald-700/50 to-transparent" />
-                <p className="relative mt-3 text-4xl font-light text-emerald-700 dark:text-emerald-200 tabular-nums">
-                  <NumberTicker value={equityValue} format={currencyFmt} delay={0.4} />
-                </p>
-                <p className="relative mt-1 font-mono text-[10px] text-zinc-500">
-                  EV + cash · no debt assumed
-                </p>
+              <div className="flex rounded-xl border border-zinc-200 dark:border-zinc-800/60 bg-zinc-100 dark:bg-zinc-900/60 p-[3px] gap-[3px]">
+                {(["base", "stress"] as const).map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setScenario(s)}
+                    className={cn(
+                      "rounded-[8px] px-3 py-1 text-[10px] uppercase tracking-widest transition-colors duration-200",
+                      scenario === s
+                        ? "bg-white dark:bg-zinc-700/60 text-zinc-800 dark:text-zinc-200 shadow-sm"
+                        : "text-zinc-500 dark:text-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-400"
+                    )}
+                  >
+                    {s === "base" ? "Base" : "Stress"}
+                  </button>
+                ))}
               </div>
             </div>
-          ) : (
-            <div className="px-5 pb-6">
-              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800/40 bg-zinc-50 dark:bg-zinc-900/30 p-8 text-center">
-                <p className="text-sm font-light text-zinc-500">
-                  Insufficient data to compute DCF valuation.
-                </p>
-                <p className="mt-1 text-[11px] text-zinc-700">
-                  Requires positive EBITDA and revenue in the extracted metrics.
-                </p>
+
+            {hasEnoughData && ev != null && equityValue != null ? (
+              <div className="grid grid-cols-1 gap-4 px-5 pb-6 sm:grid-cols-3">
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800/40 bg-zinc-50 dark:bg-zinc-900/30 p-5">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Norm. FCFF</p>
+                  <div className="mt-3 h-px w-8 bg-gradient-to-r from-zinc-700 to-transparent" />
+                  <p className="mt-3 text-4xl font-light text-zinc-900 dark:text-white tabular-nums">
+                    <NumberTicker value={fcff} format={currencyFmt} />
+                  </p>
+                  <p className="mt-1 font-mono text-[10px] text-zinc-500">{latest?.period}</p>
+                </div>
+                <div className="relative overflow-hidden rounded-2xl border border-indigo-500/20 bg-indigo-500/[0.04] p-5">
+                  <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-indigo-500/10 blur-[40px]" />
+                  <p className="relative text-[10px] uppercase tracking-[0.18em] text-zinc-500">Enterprise Value</p>
+                  <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-indigo-700/50 to-transparent" />
+                  <p className="relative mt-3 text-4xl font-light text-zinc-900 dark:text-white tabular-nums">
+                    <NumberTicker value={ev} format={currencyFmt} delay={0.2} />
+                  </p>
+                  <p className="relative mt-1 font-mono text-[10px] text-zinc-500">
+                    WACC {(wacc * 100).toFixed(2)}% · g {(TERMINAL_G * 100).toFixed(1)}%
+                  </p>
+                </div>
+                <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5">
+                  <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[40px]" />
+                  <p className="relative text-[10px] uppercase tracking-[0.18em] text-zinc-500">FMV of Equity</p>
+                  <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-emerald-700/50 to-transparent" />
+                  <p className="relative mt-3 text-4xl font-light text-emerald-700 dark:text-emerald-200 tabular-nums">
+                    <NumberTicker value={equityValue} format={currencyFmt} delay={0.4} />
+                  </p>
+                  <p className="relative mt-1 font-mono text-[10px] text-zinc-500">EV + cash · no debt assumed</p>
+                </div>
               </div>
-            </div>
-          )}
-        </GlassPanel>
-      </motion.div>
+            ) : (
+              <div className="px-5 pb-6">
+                <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800/40 bg-zinc-50 dark:bg-zinc-900/30 p-8 text-center">
+                  <p className="text-sm font-light text-zinc-500">Insufficient data to compute DCF valuation.</p>
+                  <p className="mt-1 text-[11px] text-zinc-700">Requires positive EBITDA and revenue in the extracted metrics.</p>
+                </div>
+              </div>
+            )}
+          </GlassPanel>
+        </motion.div>
+      )}
     </motion.div>
   );
 }
@@ -1696,6 +1786,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
               currencyFmt={currencyFmt}
               themeOverride={exportTheme}
               sectionHeader="Valuation Analysis"
+              isExport={true}
             />
           </div>
         </MotionConfig>
