@@ -861,7 +861,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
                   <Legend wrapperStyle={{ fontSize: 9, color: cAxis, paddingTop: 6 }} iconType="square" iconSize={6} />
                   <ReferenceLine y={0} stroke={P.zero} />
                   <Bar dataKey="revenue" name="Revenue" radius={[3,3,0,0]} fill={P.revenue} isAnimationActive={false} />
-                  <Bar dataKey="ebitda" name="EBITDA" radius={[3,3,0,0]} isAnimationActive={false}>
+                  <Bar dataKey="ebitda" name="EBITDA" fill={P.ebitdaPos} radius={[3,3,0,0]} isAnimationActive={false}>
                     {chartData.map((e, i) => <Cell key={i} fill={(e.ebitda ?? 0) >= 0 ? P.ebitdaPos : P.ebitdaNeg} />)}
                   </Bar>
                 </BarChart>
@@ -916,10 +916,10 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
                   <Tooltip contentStyle={tStyle} itemStyle={{ color: cItem }} labelStyle={{ color: cLbl }} formatter={(v) => fmtC(v as number)} cursor={{ fill: cCur }} />
                   <Legend wrapperStyle={{ fontSize: 9, color: cAxis, paddingTop: 6 }} iconType="square" iconSize={6} />
                   <ReferenceLine y={0} stroke={P.zero} />
-                  <Bar dataKey="ebitda" name="EBITDA" radius={[3,3,0,0]} isAnimationActive={false}>
+                  <Bar dataKey="ebitda" name="EBITDA" fill={P.ebitdaPos} radius={[3,3,0,0]} isAnimationActive={false}>
                     {chartData.map((e, i) => <Cell key={i} fill={(e.ebitda ?? 0) >= 0 ? P.ebitdaPos : P.ebitdaNeg} />)}
                   </Bar>
-                  <Bar dataKey="net_income" name="Net Income" radius={[3,3,0,0]} isAnimationActive={false}>
+                  <Bar dataKey="net_income" name="Net Income" fill={P.netIncome} radius={[3,3,0,0]} isAnimationActive={false}>
                     {chartData.map((e, i) => <Cell key={i} fill={(e.net_income ?? 0) >= 0 ? P.netIncome : P.ebitdaNeg} />)}
                   </Bar>
                 </BarChart>
