@@ -728,7 +728,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
           </p>
         </div>
         <div style={{
-          fontSize: 20, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.25em",
+          fontSize: 20, fontWeight: 400, textTransform: "uppercase", letterSpacing: "0.25em",
           color: isDark ? "#ffffff" : "#111827",
           borderBottom: `2px solid ${isDark ? "#374151" : "#d1d5db"}`,
           paddingBottom: 12, marginBottom: 24, marginTop: 16,
@@ -1669,7 +1669,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
       <div
         ref={tearSheetRef}
         className="fixed top-0 left-[-10000px] w-[1200px] h-max overflow-hidden pointer-events-none"
-        style={{ padding: 0, margin: 0 }}
+        style={{ padding: 0, margin: 0, fontFamily: "var(--font-geist-sans, system-ui, sans-serif)" }}
       >
         {/* Sections 1-4: operating metrics (inline-styled, theme-isolated) */}
         <ExportContent data={data} theme={exportTheme} />
@@ -1681,7 +1681,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
             className={`export-section w-full mb-10${exportTheme === "dark" ? " dark" : ""}`}
             style={{ backgroundColor: exportTheme === "dark" ? "#09090b" : "#FAF9F6", padding: 0 }}
           >
-            <h2 className="text-xl font-extrabold uppercase tracking-widest text-gray-900 dark:text-white border-b-2 border-gray-300 dark:border-gray-700 pb-3 mb-6 mt-4 px-1">
+            <h2 className="text-xl font-normal uppercase tracking-widest text-gray-900 dark:text-white border-b-2 border-gray-300 dark:border-gray-700 pb-3 mb-6 mt-4 px-1">
               Valuation Analysis
             </h2>
             <ValuationView
