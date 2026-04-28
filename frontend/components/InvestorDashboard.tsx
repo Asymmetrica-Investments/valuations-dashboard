@@ -1137,10 +1137,10 @@ function ExportModal({ data, fileName, tearSheetRef, exportTheme, onExportThemeC
 
             {/* Live preview */}
             <div
-              className="mt-5 rounded-xl border border-zinc-200 dark:border-zinc-800/50 overflow-y-auto overflow-x-hidden flex justify-center items-start"
+              className="mt-5 rounded-xl border border-zinc-200 dark:border-zinc-800/50 w-full overflow-y-auto overflow-x-hidden flex justify-center"
               style={{ maxHeight: "60vh", backgroundColor: bgColor }}
             >
-              <div style={{ zoom: 0.64, pointerEvents: "none", userSelect: "none", width: 1200, flexShrink: 0, transformOrigin: "top center" }}>
+              <div className="shrink-0 origin-top scale-[0.64] w-[1200px]" style={{ pointerEvents: "none", userSelect: "none" }}>
                 <ExportContent data={data} theme={exportTheme} />
                 <MotionConfig reducedMotion="always">
                   <div
