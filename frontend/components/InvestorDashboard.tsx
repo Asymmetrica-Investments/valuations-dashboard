@@ -526,7 +526,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
 
         {/* Section B — WACC Engine */}
         <motion.div variants={fadeUp}>
-          <GlassPanel className="h-full break-inside-avoid">
+          <GlassPanel className={`${isExport ? "h-auto" : "h-full"} break-inside-avoid`}>
             <PanelHeader title="Cost of Capital Engine" />
             <div className={isExport ? "px-5 pb-5 pt-1" : "px-5 pb-5 pt-1 space-y-3"}>
 
@@ -628,7 +628,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
           </div>
 
           {/* ── Export: Stress Case ── */}
-          <div className="export-section w-full mt-8">
+          <div className="export-section w-full mt-8 pb-12">
             <GlassPanel>
               <div className="px-5 pt-5 pb-3">
                 <p className="text-xs uppercase tracking-widest text-zinc-500">Stress Case Assumptions</p>
@@ -1771,7 +1771,7 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
       {/* Hidden export container — fixed off-screen so it never affects document scroll */}
       <div
         ref={tearSheetRef}
-        className="fixed top-0 left-[-10000px] w-[1200px] h-max overflow-hidden pointer-events-none"
+        className="fixed top-0 left-[-10000px] w-[1200px] h-auto overflow-visible pointer-events-none"
         style={{ padding: 0, margin: 0, fontFamily: "var(--font-geist-sans, system-ui, sans-serif)" }}
       >
         {/* Sections 1-4: operating metrics (inline-styled, theme-isolated) */}
