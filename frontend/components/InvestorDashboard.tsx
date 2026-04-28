@@ -574,6 +574,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
           </GlassPanel>
         </motion.div>
         </div>
+        {isExport && <div className="h-8 w-full shrink-0 bg-transparent" />}
       </div>
 
       {/* ── Row 2: Value Conclusion ────────────────────────────────────────── */}
@@ -673,6 +674,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                 </div>
               )}
             </GlassPanel>
+            <div className="h-8 w-full shrink-0 bg-transparent" />
           </div>
         </>
       ) : (
