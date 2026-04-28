@@ -345,9 +345,10 @@ interface ValuationViewProps {
   cur: string;
   currencyFmt: (v: number) => string;
   themeOverride?: "dark" | "light";
+  sectionHeader?: string;
 }
 
-function ValuationView({ data, latest, cur, currencyFmt, themeOverride }: ValuationViewProps) {
+function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionHeader }: ValuationViewProps) {
   const [scenario, setScenario] = useState<"base" | "stress">("base");
   const CT = useChartTheme();
 
@@ -436,8 +437,14 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride }: Valuat
       animate="show"
       className="space-y-6"
     >
-      {/* ── Row 1: FCFF Waterfall + WACC Engine ─────────���─────────────────── */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[3fr_2fr]">
+      {/* ── Row 1: FCFF Waterfall + WACC Engine ─────────────────────────────── */}
+      <div className="export-section w-full">
+        {sectionHeader && (
+          <h2 className="text-sm font-normal uppercase tracking-wide text-gray-500 dark:text-gray-400 border-b border-gray-300 dark:border-gray-800 pb-2 mb-6 mt-4 w-full">
+            {sectionHeader}
+          </h2>
+        )}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[3fr_2fr]">
 
         {/* Section A — FCFF Waterfall */}
         <motion.div variants={fadeUp}>
@@ -547,10 +554,11 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride }: Valuat
             </div>
           </GlassPanel>
         </motion.div>
+        </div>
       </div>
 
       {/* ── Row 2: Value Conclusion ────────────────────────────────────────── */}
-      <motion.div variants={fadeUp}>
+      <motion.div variants={fadeUp} className="export-section w-full">
         <GlassPanel>
           {/* Header + scenario toggle */}
           <div className="flex items-center justify-between px-5 pt-5 pb-4">
@@ -717,7 +725,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
     <div style={{ width: 1400, backgroundColor: bg, fontFamily: "var(--font-geist-sans, system-ui, sans-serif)" }}>
 
       {/* ── Section 1: Header + KPI grid ── */}
-      <div className="export-section w-full mb-10" style={{ ...secPad, paddingTop: 36, paddingBottom: 28 }}>
+      <div className="export-section w-full" style={{ ...secPad, paddingTop: 36, paddingBottom: 28 }}>
         <div style={{ marginBottom: 20 }}>
           <p style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase", color: muted, margin: 0 }}>
             Asymmetrica · Investment Due Diligence
@@ -748,7 +756,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
       </div>
 
       {/* ── Section 2: Revenue vs EBITDA + Cash Balance ── */}
-      <div className="export-section w-full mb-10" style={secPad}>
+      <div className="export-section w-full" style={secPad}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <div style={panelStyle()}>
             {panelHeader("Revenue vs EBITDA", `in ${unit}`)}
@@ -787,7 +795,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
       </div>
 
       {/* ── Section 3: Margin Evolution + Profitability ── */}
-      <div className="export-section w-full mb-10" style={secPad}>
+      <div className="export-section w-full" style={secPad}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <div style={panelStyle()}>
             {panelHeader("Margin Evolution", "in percent")}
@@ -831,7 +839,7 @@ function ExportContent({ data, theme }: { data: ExtractedFinancials; theme: "dar
       </div>
 
       {/* ── Section 4: Metrics table ── */}
-      <div className="export-section w-full mb-10" style={secPad}>
+      <div className="export-section w-full" style={secPad}>
         <div style={panelStyle({ padding: "16px 0 8px" })}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 16px 12px" }}>
             <p style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.18em", textTransform: "uppercase", color: muted, margin: 0 }}>Extracted Metrics by Period</p>
@@ -918,7 +926,7 @@ async function exportPdf(
       pdf.rect(0, 0, pageWidth, pageHeight, "F");
     }
     pdf.addImage(imgData, "PNG", marginX, currentY, pageWidth - marginX * 2, scaledHeight);
-    currentY += scaledHeight;
+    currentY += scaledHeight + 4;
     firstSection = false;
   }
 
@@ -1678,18 +1686,16 @@ export function InvestorDashboard({ data, fileName = "" }: { data: ExtractedFina
             animate target immediately, bypassing opacity-0/blur initial states */}
         <MotionConfig reducedMotion="always">
           <div
-            className={`export-section w-full mb-10${exportTheme === "dark" ? " dark" : ""}`}
+            className={exportTheme === "dark" ? "dark w-full" : "w-full"}
             style={{ backgroundColor: exportTheme === "dark" ? "#09090b" : "#FAF9F6", padding: 0 }}
           >
-            <h2 className="text-sm font-normal uppercase tracking-wide text-gray-500 dark:text-gray-400 border-b border-gray-300 dark:border-gray-800 pb-2 mb-6 mt-4 w-full">
-              Valuation Analysis
-            </h2>
             <ValuationView
               data={data}
               latest={latest}
               cur={cur}
               currencyFmt={currencyFmt}
               themeOverride={exportTheme}
+              sectionHeader="Valuation Analysis"
             />
           </div>
         </MotionConfig>
