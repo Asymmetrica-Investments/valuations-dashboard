@@ -635,13 +635,13 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                         <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
                           {multiplesBase.evEbitda ?? "—"}
                         </span>
-                        <span className="text-xs tracking-wider text-gray-500 uppercase mt-1">EV/EBITDA</span>
+                        <span className="relative mt-1 font-mono text-[10px] text-zinc-500">EV/EBITDA</span>
                       </div>
                       <div className="flex flex-col">
                         <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
                           {multiplesBase.evRev ?? "—"}
                         </span>
-                        <span className="text-xs tracking-wider text-gray-500 uppercase mt-1">EV/Rev</span>
+                        <span className="relative mt-1 font-mono text-[10px] text-zinc-500">EV/Rev</span>
                       </div>
                     </div>
                   </div>
@@ -702,13 +702,13 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                         <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
                           {multiplesStress.evEbitda ?? "—"}
                         </span>
-                        <span className="text-xs tracking-wider text-gray-500 uppercase mt-1">EV/EBITDA</span>
+                        <span className="relative mt-1 font-mono text-[10px] text-zinc-500">EV/EBITDA</span>
                       </div>
                       <div className="flex flex-col">
                         <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
                           {multiplesStress.evRev ?? "—"}
                         </span>
-                        <span className="text-xs tracking-wider text-gray-500 uppercase mt-1">EV/Rev</span>
+                        <span className="relative mt-1 font-mono text-[10px] text-zinc-500">EV/Rev</span>
                       </div>
                     </div>
                   </div>
@@ -793,13 +793,13 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                       <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
                         {multiplesLive.evEbitda ?? "—"}
                       </span>
-                      <span className="text-xs tracking-wider text-gray-500 uppercase mt-1">EV/EBITDA</span>
+                      <span className="relative mt-1 font-mono text-[10px] text-zinc-500">EV/EBITDA</span>
                     </div>
                     <div className="flex flex-col">
                       <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
                         {multiplesLive.evRev ?? "—"}
                       </span>
-                      <span className="text-xs tracking-wider text-gray-500 uppercase mt-1">EV/Rev</span>
+                      <span className="relative mt-1 font-mono text-[10px] text-zinc-500">EV/Rev</span>
                     </div>
                   </div>
                 </div>
