@@ -417,6 +417,19 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
   const evStress        = hasEnoughStress ? fcff / (waccStress - TERMINAL_G) : null;
   const equityStress    = evStress != null ? evStress + cash : null;
 
+  // ── Implied trading multiples ─────────────────────────────────────────────
+  const fmtMult = (v: number | null) => v == null ? null : `${v.toFixed(1)}x`;
+  const multiples = (evVal: number | null) => {
+    const evRev    = evVal != null && revenue > 0  ? fmtMult(evVal / revenue) : null;
+    const evEbitda = evVal != null && ebitda  > 0  ? fmtMult(evVal / ebitda)  : null;
+    if (!evRev && !evEbitda) return null;
+    const parts = [evEbitda && `${evEbitda} EV/EBITDA`, evRev && `${evRev} EV/Rev`].filter(Boolean);
+    return parts.join(" · ");
+  };
+  const multiplesLive   = multiples(ev);
+  const multiplesBase   = multiples(evBase);
+  const multiplesStress = multiples(evStress);
+
   // ── FCFF waterfall data ──────────��──────────────────────��─────────────────
   const cumPostTax   = ebitda - estTax;
   const cumPostCapex = cumPostTax - estCapex;
@@ -606,6 +619,9 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                     <p className="relative mt-1 font-mono text-[10px] text-zinc-500">
                       WACC {(waccBase * 100).toFixed(2)}% · g {(TERMINAL_G * 100).toFixed(1)}%
                     </p>
+                    {multiplesBase && (
+                      <p className="relative mt-1 font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{multiplesBase}</p>
+                    )}
                   </div>
                   <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5">
                     <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[40px]" />
@@ -654,6 +670,9 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                     <p className="relative mt-1 font-mono text-[10px] text-zinc-500">
                       WACC {(waccStress * 100).toFixed(2)}% · g {(TERMINAL_G * 100).toFixed(1)}%
                     </p>
+                    {multiplesStress && (
+                      <p className="relative mt-1 font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{multiplesStress}</p>
+                    )}
                   </div>
                   <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5">
                     <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[40px]" />
@@ -726,6 +745,9 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                   <p className="relative mt-1 font-mono text-[10px] text-zinc-500">
                     WACC {(wacc * 100).toFixed(2)}% · g {(TERMINAL_G * 100).toFixed(1)}%
                   </p>
+                  {multiplesLive && (
+                    <p className="relative mt-1 font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{multiplesLive}</p>
+                  )}
                 </div>
                 <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5">
                   <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[40px]" />
