@@ -630,14 +630,18 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                     <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-amber-500/10 blur-[40px]" />
                     <p className="relative text-[10px] uppercase tracking-[0.18em] text-zinc-500">Implied Multiples</p>
                     <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-amber-700/50 to-transparent" />
-                    <div className="relative mt-3 flex flex-row items-start gap-6">
-                      <div>
-                        <p className="text-4xl font-light text-zinc-900 dark:text-white tabular-nums">{multiplesBase.evEbitda ?? "—"}</p>
-                        <p className="mt-1 font-mono text-[10px] text-zinc-500">EV/EBITDA</p>
+                    <div className="relative flex flex-row items-center gap-8 mt-2">
+                      <div className="flex flex-col">
+                        <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
+                          {multiplesBase.evEbitda ?? "—"}
+                        </span>
+                        <span className="text-xs tracking-wider text-gray-500 uppercase mt-1">EV/EBITDA</span>
                       </div>
-                      <div>
-                        <p className="text-4xl font-light text-zinc-900 dark:text-white tabular-nums">{multiplesBase.evRev ?? "—"}</p>
-                        <p className="mt-1 font-mono text-[10px] text-zinc-500">EV/Rev</p>
+                      <div className="flex flex-col">
+                        <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
+                          {multiplesBase.evRev ?? "—"}
+                        </span>
+                        <span className="text-xs tracking-wider text-gray-500 uppercase mt-1">EV/Rev</span>
                       </div>
                     </div>
                   </div>
@@ -693,14 +697,18 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                     <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-amber-500/10 blur-[40px]" />
                     <p className="relative text-[10px] uppercase tracking-[0.18em] text-zinc-500">Implied Multiples</p>
                     <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-amber-700/50 to-transparent" />
-                    <div className="relative mt-3 flex flex-row items-start gap-6">
-                      <div>
-                        <p className="text-4xl font-light text-zinc-900 dark:text-white tabular-nums">{multiplesStress.evEbitda ?? "—"}</p>
-                        <p className="mt-1 font-mono text-[10px] text-zinc-500">EV/EBITDA</p>
+                    <div className="relative flex flex-row items-center gap-8 mt-2">
+                      <div className="flex flex-col">
+                        <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
+                          {multiplesStress.evEbitda ?? "—"}
+                        </span>
+                        <span className="text-xs tracking-wider text-gray-500 uppercase mt-1">EV/EBITDA</span>
                       </div>
-                      <div>
-                        <p className="text-4xl font-light text-zinc-900 dark:text-white tabular-nums">{multiplesStress.evRev ?? "—"}</p>
-                        <p className="mt-1 font-mono text-[10px] text-zinc-500">EV/Rev</p>
+                      <div className="flex flex-col">
+                        <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
+                          {multiplesStress.evRev ?? "—"}
+                        </span>
+                        <span className="text-xs tracking-wider text-gray-500 uppercase mt-1">EV/Rev</span>
                       </div>
                     </div>
                   </div>
@@ -780,14 +788,18 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                   <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-amber-500/10 blur-[40px]" />
                   <p className="relative text-[10px] uppercase tracking-[0.18em] text-zinc-500">Implied Multiples</p>
                   <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-amber-700/50 to-transparent" />
-                  <div className="relative mt-3 flex flex-row items-start gap-6">
-                    <div>
-                      <p className="text-4xl font-light text-zinc-900 dark:text-white tabular-nums">{multiplesLive.evEbitda ?? "—"}</p>
-                      <p className="mt-1 font-mono text-[10px] text-zinc-500">EV/EBITDA</p>
+                  <div className="relative flex flex-row items-center gap-8 mt-2">
+                    <div className="flex flex-col">
+                      <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
+                        {multiplesLive.evEbitda ?? "—"}
+                      </span>
+                      <span className="text-xs tracking-wider text-gray-500 uppercase mt-1">EV/EBITDA</span>
                     </div>
-                    <div>
-                      <p className="text-4xl font-light text-zinc-900 dark:text-white tabular-nums">{multiplesLive.evRev ?? "—"}</p>
-                      <p className="mt-1 font-mono text-[10px] text-zinc-500">EV/Rev</p>
+                    <div className="flex flex-col">
+                      <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
+                        {multiplesLive.evRev ?? "—"}
+                      </span>
+                      <span className="text-xs tracking-wider text-gray-500 uppercase mt-1">EV/Rev</span>
                     </div>
                   </div>
                 </div>
