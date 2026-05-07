@@ -427,6 +427,32 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
   const multiplesBase   = multiples(evBase);
   const multiplesStress = multiples(evStress);
 
+  // ── Sensitivity analysis grid (5×5: WACC rows × terminal-g cols) ──────────
+  const sensWaccDeltas = [-0.01, -0.005, 0, 0.005, 0.01];
+  const sensGDeltas    = [-0.005, -0.0025, 0, 0.0025, 0.005];
+  const sensWaccs      = sensWaccDeltas.map(d => waccBase + d);
+  const sensGs         = sensGDeltas.map(d => TERMINAL_G + d);
+  const sensGrid: (number | null)[][] = sensWaccs.map(w =>
+    sensGs.map(g => (fcff > 0 && w > g) ? fcff / (w - g) : null)
+  );
+  const sensFlat  = sensGrid.flat().filter((v): v is number => v != null);
+  const sensMin   = sensFlat.length ? Math.min(...sensFlat) : 0;
+  const sensMax   = sensFlat.length ? Math.max(...sensFlat) : 1;
+  const sensCellBg = (ev: number | null): React.CSSProperties => {
+    if (ev == null || sensMax === sensMin) return {};
+    const t = (ev - sensMin) / (sensMax - sensMin);
+    if (t < 0.5) return { backgroundColor: `rgba(239,68,68,${((0.5 - t) * 0.36).toFixed(3)})` };
+    return { backgroundColor: `rgba(0,200,117,${((t - 0.5) * 0.36).toFixed(3)})` };
+  };
+  const fmtEvSens = (v: number | null): string => {
+    if (v == null) return "N/A";
+    const abs = Math.abs(v);
+    const sign = v < 0 ? "-" : "";
+    if (abs >= 1e9) return `${sign}$${(abs / 1e9).toFixed(1)}B`;
+    if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(1)}M`;
+    return `${sign}$${(abs / 1e3).toFixed(1)}K`;
+  };
+
   // ── FCFF waterfall data ──────────��──────────────────────��─────────────────
   const cumPostTax   = ebitda - estTax;
   const cumPostCapex = cumPostTax - estCapex;
@@ -815,6 +841,63 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
           </GlassPanel>
         </motion.div>
       )}
+      {/* ── Row 3: Sensitivity Analysis ─────────────────────────────────── */}
+      <div className="export-section shrink-0 h-auto pb-12 w-full">
+        <h2 className="text-sm font-normal uppercase tracking-wide text-gray-500 dark:text-gray-400 border-b border-gray-300 dark:border-gray-800 pb-2 mb-6 mt-4 w-full">
+          Sensitivity Analysis · Implied Enterprise Value
+        </h2>
+        <GlassPanel>
+          <div className="overflow-x-auto px-5 py-5">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <th className="py-2 pr-5 text-left font-mono text-[10px] text-zinc-500 uppercase tracking-wider whitespace-nowrap">
+                    WACC \ g
+                  </th>
+                  {sensGs.map((g, j) => (
+                    <th key={j} className="py-2 px-3 text-center font-mono text-[10px] text-zinc-500 uppercase tracking-wider whitespace-nowrap">
+                      {(g * 100).toFixed(2)}%
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sensWaccs.map((w, i) => (
+                  <tr key={i}>
+                    <td className={cn(
+                      "py-2 pr-5 font-mono text-[10px] whitespace-nowrap",
+                      i === 2 ? "text-zinc-800 dark:text-zinc-200 font-medium" : "text-zinc-500"
+                    )}>
+                      {(w * 100).toFixed(2)}%
+                    </td>
+                    {sensGrid[i].map((evCell, j) => {
+                      const isBase = i === 2 && j === 2;
+                      return (
+                        <td
+                          key={j}
+                          className={cn(
+                            "py-2 px-3 text-center font-mono text-[11px] tabular-nums rounded-lg",
+                            isBase
+                              ? "ring-1 ring-inset ring-indigo-500/50 font-semibold text-zinc-900 dark:text-white"
+                              : "text-zinc-700 dark:text-zinc-300"
+                          )}
+                          style={sensCellBg(evCell)}
+                        >
+                          {fmtEvSens(evCell)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="mt-4 font-mono text-[9px] text-zinc-400 uppercase tracking-wider">
+              Rows: WACC (base ± 100 bps) · Cols: Terminal growth (base ± 50 bps) · EV = Norm. FCFF / (WACC − g)
+            </p>
+          </div>
+        </GlassPanel>
+      </div>
+
     </motion.div>
   );
 }
