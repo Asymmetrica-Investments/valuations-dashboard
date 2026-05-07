@@ -419,13 +419,10 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
 
   // ── Implied trading multiples ─────────────────────────────────────────────
   const fmtMult = (v: number | null) => v == null ? null : `${v.toFixed(1)}x`;
-  const multiples = (evVal: number | null) => {
-    const evRev    = evVal != null && revenue > 0  ? fmtMult(evVal / revenue) : null;
-    const evEbitda = evVal != null && ebitda  > 0  ? fmtMult(evVal / ebitda)  : null;
-    if (!evRev && !evEbitda) return null;
-    const parts = [evEbitda && `${evEbitda} EV/EBITDA`, evRev && `${evRev} EV/Rev`].filter(Boolean);
-    return parts.join(" · ");
-  };
+  const multiples = (evVal: number | null) => ({
+    evEbitda: evVal != null && ebitda  > 0 ? fmtMult(evVal / ebitda)  : null,
+    evRev:    evVal != null && revenue > 0 ? fmtMult(evVal / revenue) : null,
+  });
   const multiplesLive   = multiples(ev);
   const multiplesBase   = multiples(evBase);
   const multiplesStress = multiples(evStress);
@@ -600,7 +597,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                 <p className="text-xs uppercase tracking-widest text-zinc-500">Base Case Assumptions</p>
               </div>
               {hasEnoughBase && evBase != null && equityBase != null ? (
-                <div className="grid grid-cols-1 gap-4 px-5 pb-6 sm:grid-cols-3">
+                <div className="grid grid-cols-4 gap-4 px-5 pb-6">
                   <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800/40 bg-zinc-50 dark:bg-zinc-900/30 p-5">
                     <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Norm. FCFF</p>
                     <div className="mt-3 h-px w-8 bg-gradient-to-r from-zinc-700 to-transparent" />
@@ -619,9 +616,6 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                     <p className="relative mt-1 font-mono text-[10px] text-zinc-500">
                       WACC {(waccBase * 100).toFixed(2)}% · g {(TERMINAL_G * 100).toFixed(1)}%
                     </p>
-                    {multiplesBase && (
-                      <p className="relative mt-1 font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{multiplesBase}</p>
-                    )}
                   </div>
                   <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5">
                     <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[40px]" />
@@ -631,6 +625,20 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                       <NumberTicker value={equityBase} format={currencyFmt} delay={0.4} />
                     </p>
                     <p className="relative mt-1 font-mono text-[10px] text-zinc-500">EV + cash · no debt assumed</p>
+                  </div>
+                  <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-5">
+                    <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-amber-500/10 blur-[40px]" />
+                    <p className="relative text-[10px] uppercase tracking-[0.18em] text-zinc-500">Implied Multiples</p>
+                    <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-amber-700/50 to-transparent" />
+                    <p className="relative mt-3 text-4xl font-light text-zinc-900 dark:text-white tabular-nums">
+                      {multiplesBase.evEbitda ?? "—"}
+                    </p>
+                    <p className="relative mt-1 font-mono text-[10px] text-zinc-500">EV/EBITDA</p>
+                    {multiplesBase.evRev && (
+                      <p className="relative mt-2 font-mono text-[13px] font-light text-zinc-600 dark:text-zinc-300 tabular-nums">
+                        {multiplesBase.evRev} <span className="text-[9px] text-zinc-400">EV/Rev</span>
+                      </p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -651,7 +659,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                 <p className="text-xs uppercase tracking-widest text-zinc-500">Stress Case Assumptions</p>
               </div>
               {hasEnoughStress && evStress != null && equityStress != null ? (
-                <div className="grid grid-cols-1 gap-4 px-5 pb-6 sm:grid-cols-3">
+                <div className="grid grid-cols-4 gap-4 px-5 pb-6">
                   <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800/40 bg-zinc-50 dark:bg-zinc-900/30 p-5">
                     <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Norm. FCFF</p>
                     <div className="mt-3 h-px w-8 bg-gradient-to-r from-zinc-700 to-transparent" />
@@ -670,9 +678,6 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                     <p className="relative mt-1 font-mono text-[10px] text-zinc-500">
                       WACC {(waccStress * 100).toFixed(2)}% · g {(TERMINAL_G * 100).toFixed(1)}%
                     </p>
-                    {multiplesStress && (
-                      <p className="relative mt-1 font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{multiplesStress}</p>
-                    )}
                   </div>
                   <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5">
                     <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[40px]" />
@@ -682,6 +687,20 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                       <NumberTicker value={equityStress} format={currencyFmt} delay={0.4} />
                     </p>
                     <p className="relative mt-1 font-mono text-[10px] text-zinc-500">EV + cash · no debt assumed</p>
+                  </div>
+                  <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-5">
+                    <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-amber-500/10 blur-[40px]" />
+                    <p className="relative text-[10px] uppercase tracking-[0.18em] text-zinc-500">Implied Multiples</p>
+                    <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-amber-700/50 to-transparent" />
+                    <p className="relative mt-3 text-4xl font-light text-zinc-900 dark:text-white tabular-nums">
+                      {multiplesStress.evEbitda ?? "—"}
+                    </p>
+                    <p className="relative mt-1 font-mono text-[10px] text-zinc-500">EV/EBITDA</p>
+                    {multiplesStress.evRev && (
+                      <p className="relative mt-2 font-mono text-[13px] font-light text-zinc-600 dark:text-zinc-300 tabular-nums">
+                        {multiplesStress.evRev} <span className="text-[9px] text-zinc-400">EV/Rev</span>
+                      </p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -726,7 +745,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
             </div>
 
             {hasEnoughData && ev != null && equityValue != null ? (
-              <div className="grid grid-cols-1 gap-4 px-5 pb-6 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-4 px-5 pb-6 lg:grid-cols-4">
                 <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800/40 bg-zinc-50 dark:bg-zinc-900/30 p-5">
                   <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Norm. FCFF</p>
                   <div className="mt-3 h-px w-8 bg-gradient-to-r from-zinc-700 to-transparent" />
@@ -745,9 +764,6 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                   <p className="relative mt-1 font-mono text-[10px] text-zinc-500">
                     WACC {(wacc * 100).toFixed(2)}% · g {(TERMINAL_G * 100).toFixed(1)}%
                   </p>
-                  {multiplesLive && (
-                    <p className="relative mt-1 font-mono text-[10px] text-zinc-400 dark:text-zinc-500">{multiplesLive}</p>
-                  )}
                 </div>
                 <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5">
                   <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[40px]" />
@@ -757,6 +773,20 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                     <NumberTicker value={equityValue} format={currencyFmt} delay={0.4} />
                   </p>
                   <p className="relative mt-1 font-mono text-[10px] text-zinc-500">EV + cash · no debt assumed</p>
+                </div>
+                <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-5">
+                  <div aria-hidden className="pointer-events-none absolute -top-8 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-amber-500/10 blur-[40px]" />
+                  <p className="relative text-[10px] uppercase tracking-[0.18em] text-zinc-500">Implied Multiples</p>
+                  <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-amber-700/50 to-transparent" />
+                  <p className="relative mt-3 text-4xl font-light text-zinc-900 dark:text-white tabular-nums">
+                    {multiplesLive.evEbitda ?? "—"}
+                  </p>
+                  <p className="relative mt-1 font-mono text-[10px] text-zinc-500">EV/EBITDA</p>
+                  {multiplesLive.evRev && (
+                    <p className="relative mt-2 font-mono text-[13px] font-light text-zinc-600 dark:text-zinc-300 tabular-nums">
+                      {multiplesLive.evRev} <span className="text-[9px] text-zinc-400">EV/Rev</span>
+                    </p>
+                  )}
                 </div>
               </div>
             ) : (
