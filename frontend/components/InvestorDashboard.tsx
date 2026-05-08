@@ -438,17 +438,24 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
   const sensFlat  = sensGrid.flat().filter((v): v is number => v != null);
   const sensMin   = sensFlat.length ? Math.min(...sensFlat) : 0;
   const sensMax   = sensFlat.length ? Math.max(...sensFlat) : 1;
+  // Red cells: inline style so opacity interpolates smoothly (P.ebitdaNeg = #fca5a5)
   const sensCellBg = (ev: number | null): React.CSSProperties => {
     if (ev == null || sensMax === sensMin) return {};
     const t = (ev - sensMin) / (sensMax - sensMin);
-    // Dark mode: subtler tint so stark white text reads cleanly; light mode: stronger tint
+    if (t >= 0.5) return {};
     const peak = isDarkOverride ? 0.22 : 0.38;
-    if (t < 0.5) {
-      // P.ebitdaNeg = #fca5a5 = rgb(252,165,165)
-      return { backgroundColor: `rgba(252,165,165,${((0.5 - t) * 2 * peak).toFixed(3)})` };
-    }
-    // P.ebitdaPos = #00C875 = rgb(0,200,117)
-    return { backgroundColor: `rgba(0,200,117,${((t - 0.5) * 2 * peak).toFixed(3)})` };
+    return { backgroundColor: `rgba(252,165,165,${((0.5 - t) * 2 * peak).toFixed(3)})` };
+  };
+  // Green cells: discrete Tailwind classes with #00C875 so the neon hue is exact.
+  // Literal class strings are required for Tailwind's static scanner.
+  const sensCellClass = (ev: number | null): string => {
+    if (ev == null || sensMax === sensMin) return "";
+    const t = (ev - sensMin) / (sensMax - sensMin);
+    if (t <= 0.5)  return "";
+    if (t > 0.875) return "bg-[#00C875]/40";
+    if (t > 0.75)  return "bg-[#00C875]/30";
+    if (t > 0.625) return "bg-[#00C875]/20";
+    return "bg-[#00C875]/10";
   };
   const fmtEvSens = (v: number | null): string => {
     if (v == null) return "N/A";
@@ -883,6 +890,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                           key={j}
                           className={cn(
                             "py-2 px-3 text-center font-mono text-[11px] tabular-nums rounded-lg",
+                            sensCellClass(evCell),
                             isBase
                               ? "ring-1 ring-inset ring-indigo-500/50 font-semibold text-zinc-900 dark:text-white"
                               : "text-zinc-800 dark:text-white"
