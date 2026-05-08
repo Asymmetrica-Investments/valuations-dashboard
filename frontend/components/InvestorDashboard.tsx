@@ -601,7 +601,33 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
         {/* Section B — WACC Engine */}
         <motion.div variants={fadeUp} className={isExport ? "mb-8" : ""}>
           <GlassPanel className={`${isExport ? "h-auto" : "h-full"} break-inside-avoid`}>
-            <PanelHeader title="Cost of Capital Engine" />
+            {/* Cost of Capital Engine header with linked scenario toggle */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-zinc-400 shrink-0">
+                  Cost of Capital Engine
+                </p>
+                <div className="flex-1 h-px bg-gradient-to-r from-zinc-800 to-transparent" />
+              </div>
+              {!isExport && (
+                <div className="ml-4 flex shrink-0 rounded-xl border border-zinc-200 dark:border-zinc-800/60 bg-zinc-100 dark:bg-zinc-900/60 p-[3px] gap-[3px]">
+                  {(["base", "stress"] as const).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setScenario(s)}
+                      className={cn(
+                        "rounded-[8px] px-3 py-1 text-[10px] uppercase tracking-widest transition-colors duration-200",
+                        scenario === s
+                          ? "bg-white dark:bg-zinc-700/60 text-zinc-800 dark:text-zinc-200 shadow-sm"
+                          : "text-zinc-500 dark:text-zinc-600 hover:text-zinc-700 dark:hover:text-zinc-400"
+                      )}
+                    >
+                      {s === "base" ? "Base" : "Stress"}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className={isExport ? "px-5 pb-8 pt-1" : "px-5 pb-5 pt-1 space-y-3"}>
 
               {!isExport && (
