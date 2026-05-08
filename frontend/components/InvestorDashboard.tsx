@@ -351,18 +351,15 @@ interface ValuationViewProps {
 }
 
 function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionHeader, isExport }: ValuationViewProps) {
-  const [scenario,   setScenario]   = useState<"base" | "stress">("base");
-  const [rf,         setRf]         = useState(0.045);
-  const [beta,       setBeta]       = useState(1.20);
-  const [rpm,        setRpm]        = useState(0.055);
-  const [rps,        setRps]        = useState(0.020);
-  const [rpcp,       setRpcp]       = useState(0.015);
-  const [rpcBase,    setRpcBase]    = useState(0.005);
-  const [rpcStress,  setRpcStress]  = useState(0.015);
-  const [kd,         setKd]         = useState(0.060);
-  const [taxRate,    setTaxRate]    = useState(0.25);
-  const [dWeight,    setDWeight]    = useState(0.30);
-  const [terminalG,  setTerminalG]  = useState(0.025);
+  const [scenario,          setScenario]          = useState<"base" | "stress">("base");
+  const [baseAssumptions,   setBaseAssumptions]   = useState({
+    rf: 0.045, beta: 1.20, rpm: 0.055, rps: 0.020, rpcp: 0.015,
+    rpc: 0.005, kd: 0.060, taxRate: 0.25, dWeight: 0.30, terminalG: 0.025,
+  });
+  const [stressAssumptions, setStressAssumptions] = useState({
+    rf: 0.050, beta: 1.45, rpm: 0.060, rps: 0.025, rpcp: 0.030,
+    rpc: 0.020, kd: 0.075, taxRate: 0.28, dWeight: 0.35, terminalG: 0.015,
+  });
   const CT = useChartTheme();
 
   // When rendering inside the hidden export container, override chart colors
@@ -381,55 +378,62 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
   } as const : CT;
 
   // ── Static DCF constants ─────────────────────────────────────────────────────
-  const CAPEX_PCT  = 0.035;
-  const WC_PCT     = 0.020;
-  const RPP        = 0.000;
-  // ── User-editable assumptions (derived from state) ────────────────────────────
-  const TAX_RATE   = taxRate;
-  const TERMINAL_G = terminalG;
-  const RF         = rf;
-  const BETA       = beta;
-  const RPM        = rpm;
-  const RPS        = rps;
-  const RPCP       = rpcp;
-  const RPC_BASE   = rpcBase;
-  const RPC_STRESS = rpcStress;
-  const KD         = kd;
-  const D_WEIGHT   = dWeight;
-  const E_WEIGHT   = 1 - dWeight;
+  const CAPEX_PCT = 0.035;
+  const WC_PCT    = 0.020;
+  const RPP       = 0.000;
 
-  // ── Derived metrics ───────────���──────────────────────────���─────────────────
+  // ── Market data ───────────────────────────────────────────────────────────────
   const ebitda  = latest?.ebitda  ?? 0;
   const revenue = latest?.revenue ?? 0;
   const cash    = latest?.cash_balance ?? 0;
 
-  const estTax   = ebitda > 0 ? ebitda * TAX_RATE : 0;
-  const estCapex = revenue * CAPEX_PCT;
-  const estWC    = revenue * WC_PCT;
-  const fcff     = ebitda - estTax - estCapex - estWC;
+  // ── DCF engine — pure fn; computes all outputs for any assumptions object ─────
+  const computeDCF = (a: typeof baseAssumptions) => {
+    const eW       = 1 - a.dWeight;
+    const estTaxV  = ebitda > 0 ? ebitda * a.taxRate : 0;
+    const estCapexV = revenue * CAPEX_PCT;
+    const estWCV   = revenue * WC_PCT;
+    const fcffV    = ebitda - estTaxV - estCapexV - estWCV;
+    const ke       = a.rf + a.beta * a.rpm + a.rps + a.rpcp + a.rpc + RPP;
+    const wacc     = a.dWeight * a.kd * (1 - a.taxRate) + eW * ke;
+    const ok       = fcffV > 0 && wacc > a.terminalG;
+    const ev       = ok ? fcffV / (wacc - a.terminalG) : null;
+    return {
+      estTax: estTaxV, estCapex: estCapexV, estWC: estWCV,
+      fcff: fcffV, ke, wacc, hasEnough: ok,
+      ev, equity: ev != null ? ev + cash : null,
+    };
+  };
 
-  const rpc = scenario === "base" ? RPC_BASE : RPC_STRESS;
-  const ke  = RF + BETA * RPM + RPS + RPCP + rpc + RPP;
-  const wacc = D_WEIGHT * KD * (1 - TAX_RATE) + E_WEIGHT * ke;
+  // ── Active scenario ───────────────────────────────────────────────────────────
+  const A       = scenario === "base" ? baseAssumptions : stressAssumptions;
+  const updateA = (key: keyof typeof baseAssumptions, val: number) =>
+    (scenario === "base" ? setBaseAssumptions : setStressAssumptions)(
+      (prev) => ({ ...prev, [key]: val })
+    );
 
-  const hasEnoughData = fcff > 0 && wacc > TERMINAL_G;
-  const ev          = hasEnoughData ? fcff / (wacc - TERMINAL_G) : null;
-  const equityValue = ev != null ? ev + cash : null;
+  // ── Live (active scenario) DCF ────────────────────────────────────────────────
+  const liveDCF                       = computeDCF(A);
+  const { estTax, estCapex, estWC, fcff, ke, wacc } = liveDCF;
+  const hasEnoughData                 = liveDCF.hasEnough;
+  const ev                            = liveDCF.ev;
+  const equityValue                   = liveDCF.equity;
 
-  // Pre-compute both scenarios (used when isExport=true to show both side-by-side)
-  const keBase          = RF + BETA * RPM + RPS + RPCP + RPC_BASE + RPP;
-  const waccBase        = D_WEIGHT * KD * (1 - TAX_RATE) + E_WEIGHT * keBase;
-  const hasEnoughBase   = fcff > 0 && waccBase > TERMINAL_G;
-  const evBase          = hasEnoughBase ? fcff / (waccBase - TERMINAL_G) : null;
-  const equityBase      = evBase != null ? evBase + cash : null;
+  // ── Both-scenario pre-compute (export side-by-side + multiples) ───────────────
+  const baseDCF   = computeDCF(baseAssumptions);
+  const stressDCF = computeDCF(stressAssumptions);
 
-  const keStress        = RF + BETA * RPM + RPS + RPCP + RPC_STRESS + RPP;
-  const waccStress      = D_WEIGHT * KD * (1 - TAX_RATE) + E_WEIGHT * keStress;
-  const hasEnoughStress = fcff > 0 && waccStress > TERMINAL_G;
-  const evStress        = hasEnoughStress ? fcff / (waccStress - TERMINAL_G) : null;
-  const equityStress    = evStress != null ? evStress + cash : null;
+  // Aliases so export JSX needs no changes
+  const hasEnoughBase   = baseDCF.hasEnough;
+  const evBase          = baseDCF.ev;
+  const equityBase      = baseDCF.equity;
+  const waccBase        = baseDCF.wacc;
+  const hasEnoughStress = stressDCF.hasEnough;
+  const evStress        = stressDCF.ev;
+  const equityStress    = stressDCF.equity;
+  const waccStress      = stressDCF.wacc;
 
-  // ── Implied trading multiples ─────────────────────────────────────────────
+  // ── Implied trading multiples ─────────────────────────────────────────────────
   const fmtMult = (v: number | null) => v == null ? null : `${v.toFixed(1)}x`;
   const multiples = (evVal: number | null) => ({
     evEbitda:    evVal != null && ebitda  > 0 ? fmtMult(evVal / ebitda)  : null,
@@ -441,11 +445,11 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
   const multiplesBase   = multiples(evBase);
   const multiplesStress = multiples(evStress);
 
-  // ── Sensitivity analysis grid (5×5: WACC rows × terminal-g cols) ──────────
+  // ── Sensitivity analysis grid (5×5 · centered on active WACC & terminal-g) ───
   const sensWaccDeltas = [-0.01, -0.005, 0, 0.005, 0.01];
   const sensGDeltas    = [-0.005, -0.0025, 0, 0.0025, 0.005];
-  const sensWaccs      = sensWaccDeltas.map(d => waccBase + d);
-  const sensGs         = sensGDeltas.map(d => TERMINAL_G + d);
+  const sensWaccs      = sensWaccDeltas.map(d => wacc + d);
+  const sensGs         = sensGDeltas.map(d => A.terminalG + d);
   const sensGrid: (number | null)[][] = sensWaccs.map(w =>
     sensGs.map(g => (fcff > 0 && w > g) ? fcff / (w - g) : null)
   );
@@ -480,19 +484,19 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
     return `${sign}$${(abs / 1e3).toFixed(1)}K`;
   };
 
-  // ── FCFF waterfall data ──────────��──────────────────────��─────────────────
+  // ── FCFF waterfall data ───────────────────────────────────────────────────────
   const cumPostTax   = ebitda - estTax;
   const cumPostCapex = cumPostTax - estCapex;
   const waterfallData = [
-    { name: "EBITDA", spacer: 0,             bar: ebitda,   isNeg: false, isResult: false },
-    { name: "Tax",    spacer: cumPostTax,     bar: estTax,   isNeg: true,  isResult: false },
-    { name: "CAPEX",  spacer: cumPostCapex,   bar: estCapex, isNeg: true,  isResult: false },
-    { name: "Δ WC",   spacer: cumPostCapex - estWC, bar: estWC, isNeg: true, isResult: false },
-    { name: "FCFF",   spacer: 0,             bar: Math.abs(fcff), isNeg: fcff < 0, isResult: true },
+    { name: "EBITDA", spacer: 0,                   bar: ebitda,        isNeg: false, isResult: false },
+    { name: "Tax",    spacer: cumPostTax,           bar: estTax,        isNeg: true,  isResult: false },
+    { name: "CAPEX",  spacer: cumPostCapex,         bar: estCapex,      isNeg: true,  isResult: false },
+    { name: "Δ WC",   spacer: cumPostCapex - estWC, bar: estWC,         isNeg: true,  isResult: false },
+    { name: "FCFF",   spacer: 0,                   bar: Math.abs(fcff), isNeg: fcff < 0, isResult: true },
   ];
 
   // ── WACC input rows ───────────────────────────────────────────────────────────
-  // edit: true  → renders <input> when !isExport; pct: true → stored value is decimal (×100 for display/input)
+  // edit: true → renders <input> when !isExport; pct: true → value is decimal (×100 for display)
   const inputRows: Array<{
     label: string; sym: string; val: string;
     hi?: boolean;
@@ -500,22 +504,18 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
     pct?: boolean; step?: string; dp?: number;
     separator?: boolean;
   }> = [
-    { label: "Risk-free rate",        sym: "rᶠ",   val: `${(RF   * 100).toFixed(2)}%`, edit: true, rawVal: RF,       onChange: (v) => setRf(v),       pct: true,  step: "0.01", dp: 2 },
-    { label: "Beta",                  sym: "β",    val: BETA.toFixed(2),               edit: true, rawVal: BETA,     onChange: (v) => setBeta(v),     pct: false, step: "0.01", dp: 2 },
-    { label: "Equity risk premium",   sym: "rₚₘ",  val: `${(RPM  * 100).toFixed(2)}%`, edit: true, rawVal: RPM,      onChange: (v) => setRpm(v),      pct: true,  step: "0.01", dp: 2 },
-    { label: "Size premium",          sym: "rₚₛ",  val: `${(RPS  * 100).toFixed(2)}%`, edit: true, rawVal: RPS,      onChange: (v) => setRps(v),      pct: true,  step: "0.01", dp: 2 },
-    { label: "Company-specific risk", sym: "rₚ꜀",  val: `${(RPCP * 100).toFixed(2)}%`, edit: true, rawVal: RPCP,     onChange: (v) => setRpcp(v),     pct: true,  step: "0.01", dp: 2 },
-    { label: "Country risk",          sym: "rₚ꜀ₚ", val: `${(rpc * 100).toFixed(2)}%`,
-      edit: true,
-      rawVal:   scenario === "base" ? rpcBase : rpcStress,
-      onChange: scenario === "base" ? (v) => setRpcBase(v) : (v) => setRpcStress(v),
-      pct: true, step: "0.01", dp: 2 },
-    { label: "Cost of equity",        sym: "Kₑ",   val: `${(ke   * 100).toFixed(2)}%`, hi: true, separator: true },
-    { label: "Cost of debt",          sym: "Kd",   val: `${(KD   * 100).toFixed(2)}%`, edit: true, rawVal: KD,       onChange: (v) => setKd(v),       pct: true,  step: "0.01", dp: 2 },
-    { label: "Tax rate",              sym: "t",    val: `${(TAX_RATE * 100).toFixed(1)}%`, edit: true, rawVal: TAX_RATE, onChange: (v) => setTaxRate(v), pct: true, step: "0.1", dp: 1 },
-    { label: "Debt weight",           sym: "D/V",  val: `${(D_WEIGHT * 100).toFixed(1)}%`, edit: true, rawVal: D_WEIGHT, onChange: (v) => setDWeight(v), pct: true, step: "1",   dp: 1 },
-    { label: "WACC",                  sym: "WACC", val: `${(wacc * 100).toFixed(2)}%`, hi: true, separator: true },
-    { label: "Terminal growth",       sym: "g",    val: `${(TERMINAL_G * 100).toFixed(2)}%`, edit: true, rawVal: TERMINAL_G, onChange: (v) => setTerminalG(v), pct: true, step: "0.01", dp: 2 },
+    { label: "Risk-free rate",        sym: "rᶠ",   val: `${(A.rf        * 100).toFixed(2)}%`, edit: true, rawVal: A.rf,        onChange: (v) => updateA("rf",        v), pct: true,  step: "0.01", dp: 2 },
+    { label: "Beta",                  sym: "β",    val: A.beta.toFixed(2),                     edit: true, rawVal: A.beta,      onChange: (v) => updateA("beta",      v), pct: false, step: "0.01", dp: 2 },
+    { label: "Equity risk premium",   sym: "rₚₘ",  val: `${(A.rpm       * 100).toFixed(2)}%`, edit: true, rawVal: A.rpm,       onChange: (v) => updateA("rpm",       v), pct: true,  step: "0.01", dp: 2 },
+    { label: "Size premium",          sym: "rₚₛ",  val: `${(A.rps       * 100).toFixed(2)}%`, edit: true, rawVal: A.rps,       onChange: (v) => updateA("rps",       v), pct: true,  step: "0.01", dp: 2 },
+    { label: "Company-specific risk", sym: "rₚ꜀",  val: `${(A.rpcp      * 100).toFixed(2)}%`, edit: true, rawVal: A.rpcp,      onChange: (v) => updateA("rpcp",      v), pct: true,  step: "0.01", dp: 2 },
+    { label: "Country risk",          sym: "rₚ꜀ₚ", val: `${(A.rpc       * 100).toFixed(2)}%`, edit: true, rawVal: A.rpc,       onChange: (v) => updateA("rpc",       v), pct: true,  step: "0.01", dp: 2 },
+    { label: "Cost of equity",        sym: "Kₑ",   val: `${(ke * 100).toFixed(2)}%`,           hi: true, separator: true },
+    { label: "Cost of debt",          sym: "Kd",   val: `${(A.kd        * 100).toFixed(2)}%`, edit: true, rawVal: A.kd,        onChange: (v) => updateA("kd",        v), pct: true,  step: "0.01", dp: 2 },
+    { label: "Tax rate",              sym: "t",    val: `${(A.taxRate   * 100).toFixed(1)}%`, edit: true, rawVal: A.taxRate,   onChange: (v) => updateA("taxRate",   v), pct: true,  step: "0.1",  dp: 1 },
+    { label: "Debt weight",           sym: "D/V",  val: `${(A.dWeight   * 100).toFixed(1)}%`, edit: true, rawVal: A.dWeight,   onChange: (v) => updateA("dWeight",   v), pct: true,  step: "1",    dp: 1 },
+    { label: "WACC",                  sym: "WACC", val: `${(wacc * 100).toFixed(2)}%`,          hi: true, separator: true },
+    { label: "Terminal growth",       sym: "g",    val: `${(A.terminalG * 100).toFixed(2)}%`, edit: true, rawVal: A.terminalG, onChange: (v) => updateA("terminalG", v), pct: true,  step: "0.01", dp: 2 },
   ];
 
   return (
@@ -592,7 +592,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
             </div>
             <div className="px-5 pb-4">
               <p className="text-[10px] text-zinc-600 leading-relaxed">
-                FCFF = EBITDA − est. taxes ({(TAX_RATE * 100).toFixed(0)}%) − est. CAPEX ({(CAPEX_PCT * 100).toFixed(1)}% rev.) − Δ working capital ({(WC_PCT * 100).toFixed(1)}% rev.)
+                FCFF = EBITDA − est. taxes ({(A.taxRate * 100).toFixed(0)}%) − est. CAPEX ({(CAPEX_PCT * 100).toFixed(1)}% rev.) − Δ working capital ({(WC_PCT * 100).toFixed(1)}% rev.)
               </p>
             </div>
           </GlassPanel>
@@ -722,7 +722,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                     <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Norm. FCFF</p>
                     <div className="mt-3 h-px w-8 bg-gradient-to-r from-zinc-700 to-transparent" />
                     <p className="mt-3 text-4xl font-light text-zinc-900 dark:text-white tabular-nums">
-                      <NumberTicker value={fcff} format={currencyFmt} />
+                      <NumberTicker value={baseDCF.fcff} format={currencyFmt} />
                     </p>
                     <p className="mt-1 font-mono text-[10px] text-zinc-500">{latest?.period}</p>
                   </div>
@@ -734,7 +734,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                       <NumberTicker value={evBase} format={currencyFmt} delay={0.2} />
                     </p>
                     <p className="relative mt-1 font-mono text-[10px] text-zinc-500">
-                      WACC {(waccBase * 100).toFixed(2)}% · g {(TERMINAL_G * 100).toFixed(1)}%
+                      WACC {(waccBase * 100).toFixed(2)}% · g {(baseAssumptions.terminalG * 100).toFixed(1)}%
                     </p>
                   </div>
                   <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5">
@@ -793,7 +793,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                     <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Norm. FCFF</p>
                     <div className="mt-3 h-px w-8 bg-gradient-to-r from-zinc-700 to-transparent" />
                     <p className="mt-3 text-4xl font-light text-zinc-900 dark:text-white tabular-nums">
-                      <NumberTicker value={fcff} format={currencyFmt} />
+                      <NumberTicker value={stressDCF.fcff} format={currencyFmt} />
                     </p>
                     <p className="mt-1 font-mono text-[10px] text-zinc-500">{latest?.period}</p>
                   </div>
@@ -805,7 +805,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                       <NumberTicker value={evStress} format={currencyFmt} delay={0.2} />
                     </p>
                     <p className="relative mt-1 font-mono text-[10px] text-zinc-500">
-                      WACC {(waccStress * 100).toFixed(2)}% · g {(TERMINAL_G * 100).toFixed(1)}%
+                      WACC {(waccStress * 100).toFixed(2)}% · g {(stressAssumptions.terminalG * 100).toFixed(1)}%
                     </p>
                   </div>
                   <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5">
@@ -900,7 +900,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                     <NumberTicker value={ev} format={currencyFmt} delay={0.2} />
                   </p>
                   <p className="relative mt-1 font-mono text-[10px] text-zinc-500">
-                    WACC {(wacc * 100).toFixed(2)}% · g {(TERMINAL_G * 100).toFixed(1)}%
+                    WACC {(wacc * 100).toFixed(2)}% · g {(A.terminalG * 100).toFixed(1)}%
                   </p>
                 </div>
                 <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04] p-5">
