@@ -441,8 +441,14 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
   const sensCellBg = (ev: number | null): React.CSSProperties => {
     if (ev == null || sensMax === sensMin) return {};
     const t = (ev - sensMin) / (sensMax - sensMin);
-    if (t < 0.5) return { backgroundColor: `rgba(239,68,68,${((0.5 - t) * 0.36).toFixed(3)})` };
-    return { backgroundColor: `rgba(0,200,117,${((t - 0.5) * 0.36).toFixed(3)})` };
+    // Dark mode: subtler tint so stark white text reads cleanly; light mode: stronger tint
+    const peak = isDarkOverride ? 0.22 : 0.38;
+    if (t < 0.5) {
+      // P.ebitdaNeg = #fca5a5 = rgb(252,165,165)
+      return { backgroundColor: `rgba(252,165,165,${((0.5 - t) * 2 * peak).toFixed(3)})` };
+    }
+    // P.ebitdaPos = #00C875 = rgb(0,200,117)
+    return { backgroundColor: `rgba(0,200,117,${((t - 0.5) * 2 * peak).toFixed(3)})` };
   };
   const fmtEvSens = (v: number | null): string => {
     if (v == null) return "N/A";
@@ -879,7 +885,7 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                             "py-2 px-3 text-center font-mono text-[11px] tabular-nums rounded-lg",
                             isBase
                               ? "ring-1 ring-inset ring-indigo-500/50 font-semibold text-zinc-900 dark:text-white"
-                              : "text-zinc-700 dark:text-zinc-300"
+                              : "text-zinc-800 dark:text-white"
                           )}
                           style={sensCellBg(evCell)}
                         >
