@@ -629,39 +629,47 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                       key={row.label}
                       className={cn(
                         "flex items-center justify-between rounded-lg px-3 py-1.5",
-                        row.separator
-                          ? "mt-1"
-                          : "",
+                        row.separator ? "mt-1" : "",
                         row.hi
                           ? "bg-zinc-100 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/30"
                           : "hover:bg-zinc-100/60 dark:hover:bg-white/[0.02] transition-colors"
                       )}
                     >
                       <span className="text-[11px] text-zinc-500 shrink-0 mr-2">{row.label}</span>
-                      {showInput ? (
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            step={row.step ?? "0.01"}
-                            value={row.pct ? +((row.rawVal! * 100).toFixed(row.dp ?? 2)) : +row.rawVal!.toFixed(row.dp ?? 2)}
-                            onChange={(e) => {
-                              const parsed = parseFloat(e.target.value);
-                              if (!isNaN(parsed)) row.onChange!(row.pct ? parsed / 100 : parsed);
-                            }}
-                            className="w-[72px] rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-0.5 text-right font-mono text-[12px] tabular-nums text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-                          />
-                          {row.pct && <span className="font-mono text-[11px] text-zinc-400">%</span>}
-                        </div>
-                      ) : (
-                        <span
-                          className={cn(
-                            "font-mono text-[12px] tabular-nums",
-                            row.hi ? "text-zinc-800 dark:text-zinc-200 font-medium" : "text-zinc-500 dark:text-zinc-400"
-                          )}
-                        >
-                          {row.val}
-                        </span>
-                      )}
+
+                      {/* Right column — fixed w-24 so every row occupies identical horizontal space */}
+                      <div className="flex items-center justify-end w-24 shrink-0">
+                        {showInput ? (
+                          <>
+                            <input
+                              type="number"
+                              step={row.step ?? "0.01"}
+                              value={row.pct ? +((row.rawVal! * 100).toFixed(row.dp ?? 2)) : +row.rawVal!.toFixed(row.dp ?? 2)}
+                              onChange={(e) => {
+                                const parsed = parseFloat(e.target.value);
+                                if (!isNaN(parsed)) row.onChange!(row.pct ? parsed / 100 : parsed);
+                              }}
+                              className="w-[64px] rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-0.5 text-right font-mono text-[12px] tabular-nums text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                            />
+                            {/* % sign or invisible spacer — keeps input boxes at identical x-position */}
+                            {row.pct
+                              ? <span className="ml-1 w-4 text-right font-mono text-[11px] text-zinc-400">%</span>
+                              : <span className="ml-1 w-4" aria-hidden />
+                            }
+                          </>
+                        ) : (
+                          /* Static computed rows (Cost of equity, WACC).
+                             pr-[28px] = input px-2 (8px) + % spacer ml-1+w-4 (20px) → aligns digits with input numbers */
+                          <span
+                            className={cn(
+                              "pr-[28px] font-mono text-[12px] tabular-nums",
+                              row.hi ? "text-zinc-800 dark:text-zinc-200 font-medium" : "text-zinc-500 dark:text-zinc-400"
+                            )}
+                          >
+                            {row.val}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
