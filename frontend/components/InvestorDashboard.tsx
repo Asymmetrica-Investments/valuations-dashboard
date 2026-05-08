@@ -420,8 +420,10 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
   // ── Implied trading multiples ─────────────────────────────────────────────
   const fmtMult = (v: number | null) => v == null ? null : `${v.toFixed(1)}x`;
   const multiples = (evVal: number | null) => ({
-    evEbitda: evVal != null && ebitda  > 0 ? fmtMult(evVal / ebitda)  : null,
-    evRev:    evVal != null && revenue > 0 ? fmtMult(evVal / revenue) : null,
+    evEbitda:    evVal != null && ebitda  > 0 ? fmtMult(evVal / ebitda)  : null,
+    evRev:       evVal != null && revenue > 0 ? fmtMult(evVal / revenue) : null,
+    evEbitdaRaw: evVal != null && ebitda  > 0 ? evVal / ebitda           : null,
+    evRevRaw:    evVal != null && revenue > 0 ? evVal / revenue           : null,
   });
   const multiplesLive   = multiples(ev);
   const multiplesBase   = multiples(evBase);
@@ -671,14 +673,18 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                     <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-amber-700/50 to-transparent" />
                     <div className="relative flex flex-row items-center gap-8 mt-2">
                       <div className="flex flex-col">
-                        <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
-                          {multiplesBase.evEbitda ?? "—"}
+                        <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white tabular-nums">
+                          {multiplesBase.evEbitdaRaw != null
+                            ? <><NumberTicker value={multiplesBase.evEbitdaRaw} decimalPlaces={1} />x</>
+                            : "—"}
                         </span>
                         <span className="relative mt-1 font-mono text-[10px] text-zinc-500">EV/EBITDA</span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
-                          {multiplesBase.evRev ?? "—"}
+                        <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white tabular-nums">
+                          {multiplesBase.evRevRaw != null
+                            ? <><NumberTicker value={multiplesBase.evRevRaw} decimalPlaces={1} />x</>
+                            : "—"}
                         </span>
                         <span className="relative mt-1 font-mono text-[10px] text-zinc-500">EV/Rev</span>
                       </div>
@@ -738,14 +744,18 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                     <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-amber-700/50 to-transparent" />
                     <div className="relative flex flex-row items-center gap-8 mt-2">
                       <div className="flex flex-col">
-                        <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
-                          {multiplesStress.evEbitda ?? "—"}
+                        <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white tabular-nums">
+                          {multiplesStress.evEbitdaRaw != null
+                            ? <><NumberTicker value={multiplesStress.evEbitdaRaw} decimalPlaces={1} />x</>
+                            : "—"}
                         </span>
                         <span className="relative mt-1 font-mono text-[10px] text-zinc-500">EV/EBITDA</span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
-                          {multiplesStress.evRev ?? "—"}
+                        <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white tabular-nums">
+                          {multiplesStress.evRevRaw != null
+                            ? <><NumberTicker value={multiplesStress.evRevRaw} decimalPlaces={1} />x</>
+                            : "—"}
                         </span>
                         <span className="relative mt-1 font-mono text-[10px] text-zinc-500">EV/Rev</span>
                       </div>
@@ -829,14 +839,18 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
                   <div className="relative mt-3 h-px w-8 bg-gradient-to-r from-amber-700/50 to-transparent" />
                   <div className="relative flex flex-row items-center gap-8 mt-2">
                     <div className="flex flex-col">
-                      <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
-                        {multiplesLive.evEbitda ?? "—"}
+                      <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white tabular-nums">
+                        {multiplesLive.evEbitdaRaw != null
+                          ? <><NumberTicker value={multiplesLive.evEbitdaRaw} decimalPlaces={1} />x</>
+                          : "—"}
                       </span>
                       <span className="relative mt-1 font-mono text-[10px] text-zinc-500">EV/EBITDA</span>
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white">
-                        {multiplesLive.evRev ?? "—"}
+                      <span className="text-4xl font-serif tracking-tight text-gray-900 dark:text-white tabular-nums">
+                        {multiplesLive.evRevRaw != null
+                          ? <><NumberTicker value={multiplesLive.evRevRaw} decimalPlaces={1} />x</>
+                          : "—"}
                       </span>
                       <span className="relative mt-1 font-mono text-[10px] text-zinc-500">EV/Rev</span>
                     </div>
