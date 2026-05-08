@@ -351,7 +351,18 @@ interface ValuationViewProps {
 }
 
 function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionHeader, isExport }: ValuationViewProps) {
-  const [scenario, setScenario] = useState<"base" | "stress">("base");
+  const [scenario,   setScenario]   = useState<"base" | "stress">("base");
+  const [rf,         setRf]         = useState(0.045);
+  const [beta,       setBeta]       = useState(1.20);
+  const [rpm,        setRpm]        = useState(0.055);
+  const [rps,        setRps]        = useState(0.020);
+  const [rpcp,       setRpcp]       = useState(0.015);
+  const [rpcBase,    setRpcBase]    = useState(0.005);
+  const [rpcStress,  setRpcStress]  = useState(0.015);
+  const [kd,         setKd]         = useState(0.060);
+  const [taxRate,    setTaxRate]    = useState(0.25);
+  const [dWeight,    setDWeight]    = useState(0.30);
+  const [terminalG,  setTerminalG]  = useState(0.025);
   const CT = useChartTheme();
 
   // When rendering inside the hidden export container, override chart colors
@@ -369,22 +380,23 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
     cursorFill:   isDarkOverride ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)",
   } as const : CT;
 
-  // ── DCF assumption constants ──────────���────────────────────────────────────
-  const TAX_RATE   = 0.25;   // 25% effective tax rate
-  const CAPEX_PCT  = 0.035;  // 3.5% of revenue
-  const WC_PCT     = 0.020;  // 2.0% working capital Δ % of revenue
-  const TERMINAL_G = 0.025;  // 2.5% perpetual growth rate
-  const RF         = 0.045;  // 4.5% risk-free rate (10-yr Treasury)
-  const BETA       = 1.20;   // levered beta
-  const RPM        = 0.055;  // 5.5% equity risk premium (Damodaran)
-  const RPS        = 0.020;  // 2.0% size premium
-  const RPCP       = 0.015;  // 1.5% company-specific risk
-  const RPC_BASE   = 0.005;  // 0.5% country risk (base)
-  const RPC_STRESS = 0.015;  // 1.5% country risk (stress)
-  const RPP        = 0.000;  // portfolio premium
-  const KD         = 0.060;  // 6.0% pre-tax cost of debt
-  const D_WEIGHT   = 0.30;
-  const E_WEIGHT   = 0.70;
+  // ── Static DCF constants ─────────────────────────────────────────────────────
+  const CAPEX_PCT  = 0.035;
+  const WC_PCT     = 0.020;
+  const RPP        = 0.000;
+  // ── User-editable assumptions (derived from state) ────────────────────────────
+  const TAX_RATE   = taxRate;
+  const TERMINAL_G = terminalG;
+  const RF         = rf;
+  const BETA       = beta;
+  const RPM        = rpm;
+  const RPS        = rps;
+  const RPCP       = rpcp;
+  const RPC_BASE   = rpcBase;
+  const RPC_STRESS = rpcStress;
+  const KD         = kd;
+  const D_WEIGHT   = dWeight;
+  const E_WEIGHT   = 1 - dWeight;
 
   // ── Derived metrics ───────────���──────────────────────────���─────────────────
   const ebitda  = latest?.ebitda  ?? 0;
@@ -479,20 +491,31 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
     { name: "FCFF",   spacer: 0,             bar: Math.abs(fcff), isNeg: fcff < 0, isResult: true },
   ];
 
-  // ── WACC input rows ───────────���─────────────────────────────��──────────────
-  const inputRows = [
-    { label: "Risk-free rate",        sym: "rᶠ",   val: `${(RF * 100).toFixed(1)}%` },
-    { label: "Beta",                  sym: "β",    val: BETA.toFixed(2) },
-    { label: "Equity risk premium",   sym: "rₚₘ",  val: `${(RPM * 100).toFixed(1)}%` },
-    { label: "Size premium",          sym: "rₚₛ",  val: `${(RPS * 100).toFixed(1)}%` },
-    { label: "Company-specific risk", sym: "rₚ꜀",  val: `${(RPCP * 100).toFixed(1)}%` },
-    { label: "Country risk",          sym: "rₚ꜀ₚ", val: `${(rpc * 100).toFixed(1)}%` },
-    { label: "Cost of equity",        sym: "Kₑ",   val: `${(ke * 100).toFixed(2)}%`, hi: true },
-    { label: "Cost of debt",          sym: "Kd",   val: `${(KD * 100).toFixed(1)}%` },
-    { label: "Tax rate",              sym: "t",    val: `${(TAX_RATE * 100).toFixed(0)}%` },
-    { label: "Debt weight",           sym: "D/V",  val: `${(D_WEIGHT * 100).toFixed(0)}%` },
-    { label: "WACC",                  sym: "WACC", val: `${(wacc * 100).toFixed(2)}%`, hi: true },
-    { label: "Terminal growth",       sym: "g",    val: `${(TERMINAL_G * 100).toFixed(1)}%` },
+  // ── WACC input rows ───────────────────────────────────────────────────────────
+  // edit: true  → renders <input> when !isExport; pct: true → stored value is decimal (×100 for display/input)
+  const inputRows: Array<{
+    label: string; sym: string; val: string;
+    hi?: boolean;
+    edit?: boolean; rawVal?: number; onChange?: (v: number) => void;
+    pct?: boolean; step?: string; dp?: number;
+    separator?: boolean;
+  }> = [
+    { label: "Risk-free rate",        sym: "rᶠ",   val: `${(RF   * 100).toFixed(2)}%`, edit: true, rawVal: RF,       onChange: (v) => setRf(v),       pct: true,  step: "0.01", dp: 2 },
+    { label: "Beta",                  sym: "β",    val: BETA.toFixed(2),               edit: true, rawVal: BETA,     onChange: (v) => setBeta(v),     pct: false, step: "0.01", dp: 2 },
+    { label: "Equity risk premium",   sym: "rₚₘ",  val: `${(RPM  * 100).toFixed(2)}%`, edit: true, rawVal: RPM,      onChange: (v) => setRpm(v),      pct: true,  step: "0.01", dp: 2 },
+    { label: "Size premium",          sym: "rₚₛ",  val: `${(RPS  * 100).toFixed(2)}%`, edit: true, rawVal: RPS,      onChange: (v) => setRps(v),      pct: true,  step: "0.01", dp: 2 },
+    { label: "Company-specific risk", sym: "rₚ꜀",  val: `${(RPCP * 100).toFixed(2)}%`, edit: true, rawVal: RPCP,     onChange: (v) => setRpcp(v),     pct: true,  step: "0.01", dp: 2 },
+    { label: "Country risk",          sym: "rₚ꜀ₚ", val: `${(rpc * 100).toFixed(2)}%`,
+      edit: true,
+      rawVal:   scenario === "base" ? rpcBase : rpcStress,
+      onChange: scenario === "base" ? (v) => setRpcBase(v) : (v) => setRpcStress(v),
+      pct: true, step: "0.01", dp: 2 },
+    { label: "Cost of equity",        sym: "Kₑ",   val: `${(ke   * 100).toFixed(2)}%`, hi: true, separator: true },
+    { label: "Cost of debt",          sym: "Kd",   val: `${(KD   * 100).toFixed(2)}%`, edit: true, rawVal: KD,       onChange: (v) => setKd(v),       pct: true,  step: "0.01", dp: 2 },
+    { label: "Tax rate",              sym: "t",    val: `${(TAX_RATE * 100).toFixed(1)}%`, edit: true, rawVal: TAX_RATE, onChange: (v) => setTaxRate(v), pct: true, step: "0.1", dp: 1 },
+    { label: "Debt weight",           sym: "D/V",  val: `${(D_WEIGHT * 100).toFixed(1)}%`, edit: true, rawVal: D_WEIGHT, onChange: (v) => setDWeight(v), pct: true, step: "1",   dp: 1 },
+    { label: "WACC",                  sym: "WACC", val: `${(wacc * 100).toFixed(2)}%`, hi: true, separator: true },
+    { label: "Terminal growth",       sym: "g",    val: `${(TERMINAL_G * 100).toFixed(2)}%`, edit: true, rawVal: TERMINAL_G, onChange: (v) => setTerminalG(v), pct: true, step: "0.01", dp: 2 },
   ];
 
   return (
@@ -599,27 +622,49 @@ function ValuationView({ data, latest, cur, currencyFmt, themeOverride, sectionH
 
               {/* Input rows */}
               <div className="space-y-[2px]">
-                {inputRows.map((row) => (
-                  <div
-                    key={row.label}
-                    className={cn(
-                      "flex items-center justify-between rounded-lg px-3 py-1.5",
-                      row.hi
-                        ? "bg-zinc-100 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/30"
-                        : "hover:bg-zinc-100/60 dark:hover:bg-white/[0.02] transition-colors"
-                    )}
-                  >
-                    <span className="text-[11px] text-zinc-500">{row.label}</span>
-                    <span
+                {inputRows.map((row) => {
+                  const showInput = !isExport && row.edit && row.rawVal !== undefined && row.onChange;
+                  return (
+                    <div
+                      key={row.label}
                       className={cn(
-                        "font-mono text-[12px] tabular-nums",
-                        row.hi ? "text-zinc-800 dark:text-zinc-200 font-medium" : "text-zinc-500 dark:text-zinc-400"
+                        "flex items-center justify-between rounded-lg px-3 py-1.5",
+                        row.separator
+                          ? "mt-1"
+                          : "",
+                        row.hi
+                          ? "bg-zinc-100 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/30"
+                          : "hover:bg-zinc-100/60 dark:hover:bg-white/[0.02] transition-colors"
                       )}
                     >
-                      {row.val}
-                    </span>
-                  </div>
-                ))}
+                      <span className="text-[11px] text-zinc-500 shrink-0 mr-2">{row.label}</span>
+                      {showInput ? (
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            step={row.step ?? "0.01"}
+                            value={row.pct ? +((row.rawVal! * 100).toFixed(row.dp ?? 2)) : +row.rawVal!.toFixed(row.dp ?? 2)}
+                            onChange={(e) => {
+                              const parsed = parseFloat(e.target.value);
+                              if (!isNaN(parsed)) row.onChange!(row.pct ? parsed / 100 : parsed);
+                            }}
+                            className="w-[72px] rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-0.5 text-right font-mono text-[12px] tabular-nums text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+                          />
+                          {row.pct && <span className="font-mono text-[11px] text-zinc-400">%</span>}
+                        </div>
+                      ) : (
+                        <span
+                          className={cn(
+                            "font-mono text-[12px] tabular-nums",
+                            row.hi ? "text-zinc-800 dark:text-zinc-200 font-medium" : "text-zinc-500 dark:text-zinc-400"
+                          )}
+                        >
+                          {row.val}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </GlassPanel>
